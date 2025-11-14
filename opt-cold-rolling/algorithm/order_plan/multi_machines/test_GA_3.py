@@ -1246,25 +1246,26 @@ def generate_random_orders(num_orders: int = 5) -> List[OrderMultiFeature]:
 
     # 定义一些基础参数范围
     start_date = datetime(2024, 11, 1)
-    end_date = datetime(2024, 11, 15)
-    date_range = 10
-    widths = [792, 802, 830, 821, 854, 910, 914, 926, 952, 984, 1035]
-    thicknesses = [8.0, 9.0, 10.0, 11.0, 12.0]
-    weights = [300.0, 350.0, 400.0, 180.0, 260]
 
     for i in range(num_orders):
+        random.seed(i)
+        date_range = random.randint(10, 15)
+        widths = random.randint(800, 1000)
+        thicknesses = random.randint(50, 70)
+        weights = random.randint(200, 300)
+
         order_no = f"order_{i + 1:03d}"  # 生成订单号，如 O001, O002...
 
         # 随机生成计划开始日期（基于基准日期）
-        plan_start = start_date + timedelta(days=random.randint(0, date_range))
+        plan_start = start_date
 
         # 随机生成交货日期（在计划开始日期之后的几天内）
-        delivery_date = plan_start + timedelta(days=random.randint(date_range, date_range + 5))
+        delivery_date = plan_start + timedelta(days=date_range)
 
         # 随机选择其他属性
-        order_wt = random.choice(weights)
-        order_width = random.choice(widths)
-        order_thick = random.choice(thicknesses)
+        order_wt = weights
+        order_width = widths
+        order_thick = thicknesses
 
         order = OrderMultiFeature(
             order_no=order_no,
@@ -1280,40 +1281,40 @@ def generate_random_orders(num_orders: int = 5) -> List[OrderMultiFeature]:
     return orders
 # 假设的 orders_obj_list 和 static_params
 # 在实际运行时，你会从外部获取这些数据
-orders_obj_list = [
-    OrderMultiFeature(order_no="O001",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
-                      order_wt=240.0, order_width=1212.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O002",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
-                          order_wt=250.0, order_width=1201.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O003",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
-                              order_wt=240.0, order_width=1211.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O004",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
-                                  order_wt=270.0, order_width=1203.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O005",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21, 21),
-                          order_wt=240.0, order_width=1200.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O006",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 23),
-                          order_wt=240.0, order_width=1204.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O007",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 23),
-                          order_wt=250.0, order_width=1205.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O008",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 22),
-                          order_wt=240.0, order_width=1206.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O009",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
-                          order_wt=260.0, order_width=1207.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O0010",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 20),
-                          order_wt=240.0, order_width=1208.0, order_thick=10.0),
-    OrderMultiFeature(order_no="O0011",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
-                          order_wt=240.0, order_width=1209.0, order_thick=10.0),
-OrderMultiFeature(order_no="O0012",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
-                          order_wt=230.0, order_width=1208.0, order_thick=10.0),
-OrderMultiFeature(order_no="O0013",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
-                          order_wt=240.0, order_width=1211.0, order_thick=10.0),
-OrderMultiFeature(order_no="O0014",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
-                          order_wt=240.0, order_width=1212.0, order_thick=10.0),
+# orders_obj_list = [
+#     OrderMultiFeature(order_no="O001",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
+#                       order_wt=240.0, order_width=1212.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O002",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
+#                           order_wt=250.0, order_width=1201.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O003",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
+#                               order_wt=240.0, order_width=1211.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O004",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
+#                                   order_wt=270.0, order_width=1203.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O005",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21, 21),
+#                           order_wt=240.0, order_width=1200.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O006",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 23),
+#                           order_wt=240.0, order_width=1204.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O007",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 23),
+#                           order_wt=250.0, order_width=1205.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O008",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 22),
+#                           order_wt=240.0, order_width=1206.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O009",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 19),
+#                           order_wt=260.0, order_width=1207.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O0010",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 20),
+#                           order_wt=240.0, order_width=1208.0, order_thick=10.0),
+#     OrderMultiFeature(order_no="O0011",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
+#                           order_wt=240.0, order_width=1209.0, order_thick=10.0),
+# OrderMultiFeature(order_no="O0012",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
+#                           order_wt=230.0, order_width=1208.0, order_thick=10.0),
+# OrderMultiFeature(order_no="O0013",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
+#                           order_wt=240.0, order_width=1211.0, order_thick=10.0),
+# OrderMultiFeature(order_no="O0014",  plan_start_date=datetime(2024, 11, 15), delivery_date=datetime(2024, 11, 21),
+#                           order_wt=240.0, order_width=1212.0, order_thick=10.0),
+#
+#
+# ]
 
-
-]
-
-# orders_obj_list = generate_random_orders(10)
+orders_obj_list = generate_random_orders(10)
 static_params = StaticParameters() # 初始化时会自动计算搭接费用矩阵
 
 
