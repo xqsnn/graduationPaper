@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- 由 Microsoft Visio, SVG Export 生成 VRPTW.svg 问题抽象 -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events"
+		xmlns:v="http://schemas.microsoft.com/visio/2003/SVGExtensions/" width="8.63905in" height="3.59699in"
+		viewBox="0 0 622.012 258.983" xml:space="preserve" color-interpolation-filters="sRGB" class="st15">
+	<v:documentProperties v:langID="2052" v:metric="true" v:viewMarkup="false">
+		<v:userDefs>
+			<v:ud v:nameU="msvNoAutoConnect" v:val="VT0(1):26"/>
+		</v:userDefs>
+	</v:documentProperties>
+
+	<style type="text/css">
+	<![CDATA[
+		.st1 {fill:#fee599;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.75}
+		.st2 {fill:#b7dde8;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.75}
+		.st3 {fill:#ddd6e5;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.75}
+		.st4 {fill:#e5b9b5;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.75}
+		.st5 {marker-end:url(#mrkr4-24);stroke:#305497;stroke-linecap:round;stroke-linejoin:round;stroke-width:1}
+		.st6 {fill:#305497;fill-opacity:1;stroke:#305497;stroke-opacity:1;stroke-width:0.40983606557377}
+		.st7 {marker-end:url(#mrkr4-50);stroke:#a8d08d;stroke-linecap:round;stroke-linejoin:round;stroke-width:1}
+		.st8 {fill:#a8d08d;fill-opacity:1;stroke:#a8d08d;stroke-opacity:1;stroke-width:0.40983606557377}
+		.st9 {fill:none;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.75}
+		.st10 {fill:#000000;font-family:Times New Roman;font-size:1.00001em}
+		.st11 {baseline-shift:-32.4941%;font-size:0.649882em}
+		.st12 {font-size:1em}
+		.st13 {stroke:#000000;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.25}
+		.st14 {fill:#ffc000;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:0.24}
+		.st15 {fill:none;fill-rule:evenodd;font-size:12px;overflow:visible;stroke-linecap:square;stroke-miterlimit:3}
+	]]>
+	</style>
+
+	<defs id="Markers">
+		<g id="lend4">
+			<path d="M 2 1 L 0 0 L 2 -1 L 2 1 " style="stroke:none"/>
+		</g>
+		<marker id="mrkr4-24" class="st6" v:arrowType="4" v:arrowSize="0" v:setback="4.88" refX="-4.88" orient="auto"
+				markerUnits="strokeWidth" overflow="visible">
+			<use xlink:href="#lend4" transform="scale(-2.44,-2.44) "/>
+		</marker>
+		<marker id="mrkr4-50" class="st8" v:arrowType="4" v:arrowSize="0" v:setback="4.88" refX="-4.88" orient="auto"
+				markerUnits="strokeWidth" overflow="visible">
+			<use xlink:href="#lend4" transform="scale(-2.44,-2.44) "/>
+		</marker>
+	</defs>
+	<g v:mID="4" v:index="3" v:groupContext="foregroundPage">
+		<title>问题抽象</title>
+		<v:pageProperties v:drawingScale="0.0393701" v:pageScale="0.0393701" v:drawingUnits="24" v:shadowOffsetX="8.50394"
+				v:shadowOffsetY="-8.50394"/>
+		<v:layer v:name="连接线" v:index="0"/>
+		<v:layer v:name="流程图" v:index="1"/>
+		<g id="shape1-1" v:mID="1" v:groupContext="shape" transform="translate(78.168,-173.433)">
+			<title>圆形</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st1"/>
+		</g>
+		<g id="shape2-3" v:mID="2" v:groupContext="shape" transform="translate(142.998,-173.433)">
+			<title>圆形.2</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st1"/>
+		</g>
+		<g id="shape3-5" v:mID="3" v:groupContext="shape" transform="translate(207.829,-173.433)">
+			<title>圆形.3</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st1"/>
+		</g>
+		<g id="shape4-7" v:mID="4" v:groupContext="shape" transform="translate(274.22,-173.201)">
+			<title>圆形.4</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st2"/>
+		</g>
+		<g id="shape5-9" v:mID="5" v:groupContext="shape" transform="translate(339.051,-173.201)">
+			<title>圆形.5</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st2"/>
+		</g>
+		<g id="shape8-11" v:mID="8" v:groupContext="shape" transform="translate(399.502,-172.284)">
+			<title>圆形.8</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st3"/>
+		</g>
+		<g id="shape9-13" v:mID="9" v:groupContext="shape" transform="translate(464.332,-172.284)">
+			<title>圆形.9</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st3"/>
+		</g>
+		<g id="shape10-15" v:mID="10" v:groupContext="shape" transform="translate(529.162,-172.284)">
+			<title>圆形.10</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st3"/>
+		</g>
+		<g id="shape11-17" v:mID="11" v:groupContext="shape" transform="translate(298.043,-87.2778)">
+			<title>圆形.11</title>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+				<v:ud v:nameU="visMasterStencil" v:prompt="" v:val="VT4(Basic_M.vssx)"/>
+			</v:userDefs>
+			<path d="M0 241.72 A17.2648 17.2648 0 1 1 34.53 241.72 A17.2648 17.2648 0 0 1 -0 241.72 Z" class="st4"/>
+		</g>
+		<g id="shape32-19" v:mID="32" v:groupContext="shape" v:layerMember="0" transform="translate(112.698,-183.612)">
+			<title>动态连接线.32</title>
+			<path d="M0 251.9 L25.42 251.9" class="st5"/>
+		</g>
+		<g id="shape33-25" v:mID="33" v:groupContext="shape" v:layerMember="0" transform="translate(177.528,-183.612)">
+			<title>动态连接线.33</title>
+			<path d="M0 251.9 L25.42 251.9" class="st5"/>
+		</g>
+		<g id="shape34-30" v:mID="34" v:groupContext="shape" v:layerMember="0" transform="translate(308.75,-197.552)">
+			<title>动态连接线.34</title>
+			<path d="M0 266.07 L25.42 266.07" class="st5"/>
+		</g>
+		<g id="shape35-35" v:mID="35" v:groupContext="shape" v:layerMember="0" transform="translate(434.031,-182.462)">
+			<title>动态连接线.35</title>
+			<path d="M0 251.9 L25.42 251.9" class="st5"/>
+		</g>
+		<g id="shape36-40" v:mID="36" v:groupContext="shape" v:layerMember="0" transform="translate(498.862,-182.462)">
+			<title>动态连接线.36</title>
+			<path d="M0 251.9 L25.42 251.9" class="st5"/>
+		</g>
+		<g id="shape37-45" v:mID="37" v:groupContext="shape" v:layerMember="0" transform="translate(298.043,-104.543)">
+			<title>动态连接线.37</title>
+			<path d="M0 258.98 L-197.99 191.66" class="st7"/>
+		</g>
+		<g id="shape38-51" v:mID="38" v:groupContext="shape" v:layerMember="0" transform="translate(237.303,-178.488)">
+			<title>动态连接线.38</title>
+			<path d="M0 258.98 L57.64 329.16" class="st7"/>
+		</g>
+		<g id="shape39-56" v:mID="39" v:groupContext="shape" v:layerMember="0" transform="translate(315.308,-121.807)">
+			<title>动态连接线.39</title>
+			<path d="M0 258.98 L-21.77 212.02" class="st7"/>
+		</g>
+		<g id="shape40-61" v:mID="40" v:groupContext="shape" v:layerMember="0" transform="translate(356.315,-173.201)">
+			<title>动态连接线.40</title>
+			<path d="M0 258.98 L-37.96 306.56" class="st7"/>
+		</g>
+		<g id="shape41-66" v:mID="41" v:groupContext="shape" v:layerMember="0" transform="translate(332.572,-104.543)">
+			<title>动态连接线.41</title>
+			<path d="M0 258.98 L68.55 189.66" class="st7"/>
+		</g>
+		<g id="shape42-71" v:mID="42" v:groupContext="shape" v:layerMember="0" transform="translate(546.427,-172.284)">
+			<title>动态连接线.42</title>
+			<path d="M0 258.98 L-209.2 325.25" class="st7"/>
+		</g>
+		<g id="shape50-76" v:mID="50" v:groupContext="shape" transform="translate(127.601,-220.571)">
+			<title>工作表.50</title>
+			<desc>Batch1</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="32.6618" cy="249.136" width="65.33" height="19.6956"/>
+			<rect x="0" y="239.288" width="65.3237" height="19.6956" class="st9"/>
+			<text x="15.67" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Batch1</text>		</g>
+		<g id="shape51-79" v:mID="51" v:groupContext="shape" transform="translate(301.117,-220.571)">
+			<title>工作表.51</title>
+			<desc>Batch2</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="32.6618" cy="249.136" width="65.33" height="19.6956"/>
+			<rect x="0" y="239.288" width="65.3237" height="19.6956" class="st9"/>
+			<text x="15.67" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Batch2</text>		</g>
+		<g id="shape52-82" v:mID="52" v:groupContext="shape" transform="translate(448.935,-220.913)">
+			<title>工作表.52</title>
+			<desc>Batch3</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="32.6618" cy="249.136" width="65.33" height="19.6956"/>
+			<rect x="0" y="239.288" width="65.3237" height="19.6956" class="st9"/>
+			<text x="15.67" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Batch3</text>		</g>
+		<g id="shape53-85" v:mID="53" v:groupContext="shape" transform="translate(98.6294,-65.3438)">
+			<title>工作表.53</title>
+			<desc>Batch setup cost</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="62.3847" cy="249.136" width="124.77" height="19.6956"/>
+			<rect x="0" y="239.288" width="124.769" height="19.6956" class="st9"/>
+			<text x="23.06" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Batch setup cost</text>		</g>
+		<g id="shape54-88" v:mID="54" v:groupContext="shape" transform="translate(407.216,-38.1126)">
+			<title>工作表.54</title>
+			<desc>Width cost: wij Thick cost: tij Mulsion cost: mij</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="89.265" cy="226.23" width="178.54" height="65.507"/>
+			<rect x="0" y="193.476" width="178.53" height="65.507" class="st9"/>
+			<text x="53.44" y="215.43" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Width cost: w<tspan
+						dy="-0.279em" class="st11" v:baseFontSize="12">ij<v:newlineChar/></tspan><tspan x="57.1" dy="1.381em"
+						class="st12">Thick cost: t</tspan><tspan dy="-0.279em" class="st11" v:baseFontSize="12">ij<v:newlineChar/></tspan><tspan
+						x="48.09" dy="1.381em" class="st12">Mulsion cost: m</tspan><tspan dy="-0.279em" class="st11"
+						v:baseFontSize="12">ij</tspan></text>		</g>
+		<g id="shape55-96" v:mID="55" v:groupContext="shape" transform="translate(419.298,216.231) rotate(110.783)">
+			<title>工作表.55</title>
+			<path d="M0 258.98 L50.33 258.98" class="st13"/>
+		</g>
+		<g id="shape56-99" v:mID="56" v:groupContext="shape" transform="translate(263.911,283.497) rotate(-119.654)">
+			<title>工作表.56</title>
+			<path d="M0 258.98 L39.02 258.98" class="st13"/>
+		</g>
+		<g id="shape57-102" v:mID="57" v:groupContext="shape" transform="translate(252.923,-65.0064)">
+			<title>工作表.57</title>
+			<desc>Initial node</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="62.3847" cy="249.136" width="124.77" height="19.6956"/>
+			<rect x="0" y="239.288" width="124.769" height="19.6956" class="st9"/>
+			<text x="34.89" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Initial node</text>		</g>
+		<g id="shape59-105" v:mID="59" v:groupContext="shape" transform="translate(18.375,-206.251)">
+			<title>工作表.59</title>
+			<desc>Time window: [0, Ti]</desc>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="58.6975" cy="245.03" width="117.4" height="27.9074"/>
+			<rect x="0" y="231.076" width="117.395" height="27.9074" class="st9"/>
+			<text x="7.29" y="248.63" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Time window: [0, T<tspan
+						dy="-0.279em" class="st11" v:baseFontSize="12">i</tspan><tspan dy="0.181em" class="st12">]</tspan></text>		</g>
+		<g id="shape60-110" v:mID="60" v:groupContext="shape" v:layerMember="0" transform="translate(322.174,-37.8156)">
+			<title>动态连接线.60</title>
+			<path d="M-6.89 258.98 L-7.21 236.67" class="st5"/>
+		</g>
+		<g id="shape61-115" v:mID="61" v:groupContext="shape" v:layerMember="1" transform="translate(257.884,-18.12)">
+			<title>流程</title>
+			<desc>Inventory Constraint</desc>
+			<v:custProps>
+				<v:cp v:nameU="Cost" v:lbl="成本" v:prompt="" v:type="7" v:format="@" v:sortKey="" v:invis="false" v:ask="false"
+						v:langID="2052" v:cal="0"/>
+				<v:cp v:nameU="ProcessNumber" v:lbl="进程编号" v:prompt="" v:type="2" v:format="" v:sortKey="" v:invis="false"
+						v:ask="false" v:langID="2052" v:cal="0"/>
+				<v:cp v:nameU="Owner" v:lbl="所有者" v:prompt="" v:type="0" v:format="" v:sortKey="" v:invis="false" v:ask="false"
+						v:langID="2052" v:cal="0"/>
+				<v:cp v:nameU="Function" v:lbl="函数" v:prompt="" v:type="0" v:format="" v:sortKey="" v:invis="false" v:ask="false"
+						v:langID="2052" v:cal="0" v:val="VT4()"/>
+				<v:cp v:nameU="StartDate" v:lbl="开始日期" v:prompt="" v:type="5" v:format="" v:sortKey="" v:invis="false"
+						v:ask="false" v:langID="2052" v:cal="0"/>
+				<v:cp v:nameU="EndDate" v:lbl="结束日期" v:prompt="" v:type="5" v:format="" v:sortKey="" v:invis="false" v:ask="false"
+						v:langID="2052" v:cal="0"/>
+				<v:cp v:nameU="Status" v:lbl="状态" v:prompt="" v:type="4" v:format=";未开始;进行中;已完成;已推迟;正在等待输入" v:sortKey=""
+						v:invis="false" v:ask="false" v:langID="2052" v:cal="0" v:val="VT4()"/>
+			</v:custProps>
+			<v:userDefs>
+				<v:ud v:nameU="visVersion" v:prompt="" v:val="VT0(15):26"/>
+				<v:ud v:nameU="DefaultWidth" v:prompt="" v:val="VT0(0.98425196850394):24"/>
+				<v:ud v:nameU="DefaultHeight" v:prompt="" v:val="VT0(0.59055118110236):24"/>
+				<v:ud v:nameU="ResizeTxtHeight" v:prompt="" v:val="VT0(0.59055118110236):24"/>
+			</v:userDefs>
+			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+			<v:textRect cx="57.4016" cy="249.136" width="114.81" height="19.6956"/>
+			<rect x="0" y="239.288" width="114.803" height="19.6956" class="st14"/>
+			<text x="7.58" y="252.74" class="st10" v:langID="2052"><v:paragraph v:horizAlign="1"/><v:tabList/>Inventory Constraint</text>		</g>
+	</g>
+</svg>

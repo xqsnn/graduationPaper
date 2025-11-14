@@ -1,0 +1,56 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+%\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{ctex}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array} 
+\usepackage[ruled,linesnumbered,vlined]{algorithm2e}
+\pagestyle{empty}
+\begin{document}
+
+
+\begin{algorithm}[htb]
+	\caption{考虑工序优先级关系的空闲工人优先指派规则}
+	\label{alg:heu_WorkingTime}
+	\KwIn{$J$、$I$、$\left[\underline{t}, \overline{t}\right]$}
+	\KwOut{$\{x_{jmi}\}$、$\{ST_{jm}\}$和$\{CT_{jm}\}$}
+	初始化。$x_{jmi} \leftarrow 0, \forall j\in J, m\in M, i\in I$。待排工序列表$L\leftarrow \emptyset$。\\
+	\Repeat{$L= \emptyset$且$J = \emptyset$}{
+		\If{$L= \emptyset$}{
+			$L\leftarrow$前$\min\{|J|,n\}$个作业的工序；从$J$中删除前$\min\{|J|,n\}$个作业；\\
+			按照先工序索引升序、后作业索引升序对$L$重新排列；\\
+		}
+		选择$L$中的第一个工序$m$，并从$L$中移除该工序，记$m$是作业$j$的工序；\label{alg: heu line start}\\
+		%\tcp{指派工序$m$}
+		获取作业$j$工序$m$紧前工序的完成时间（含固化时间）集合$T_1$；\\
+		获取当前最先空闲的$\overline{n}_m$个工人集合$I^\prime$；获取$I^\prime$中工人的最早空闲时间集合$T_2$；\\
+		记已完成（所有工序）的作业数为$n_1$，开始处理但未完成的作业数为$n_2$；\\
+		获取已完成（所有工序）的作业完成时间（含固化时间）集合$T_3$；\\
+		$x_{jmi} \leftarrow 1, \forall i\in I^\prime$;\\
+		\lIf{$n - n_2 > n_1$}{
+			$ST_{jm} \leftarrow \max_{t\in T_1 \cup T_2}{t}$
+		}
+		\ElseIf{$n - n_2 = 0$}{
+			\eIf{ $n_1 = 0$ }{
+				$ST_{jm} \leftarrow \max_{t\in T_1 \cup T_2}{t}$;\\
+			}{
+				$ST_{jm} \leftarrow \max_{t\in T_1 \cup T_2 \cup T_3}{t}$;\\
+			}
+		}
+		\Else{
+			获取$T_3$中第$n - n_2$大的值$t^\prime$；\\%\colorbox{yellow}{此处似乎可以优化}\\
+			$ST_{jm} \leftarrow \max\{t^\prime, \max_{t\in T_1 \cup T_2}{t}\}$;\\
+		}
+		$CT_{jm} \leftarrow ST_{jm} + P_{jm} + \lceil (P_{jm} - t^\prime) / \Delta t \rceil \times (24 - \Delta t)$;\label{alg: heu line end}
+	}
+	\KwRet{$\{x_{jmi}\}$, $\{ST_{jm}\}$, $\{CT_{jm}\}, \forall j\in J, m\in M, i\in I$}.
+\end{algorithm}
+
+\end{document}
