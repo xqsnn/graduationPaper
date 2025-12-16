@@ -79,9 +79,9 @@ class Solution:
     ca_sequences: List[List[int]]  # 每台连退机的顺序
 
     # 目标函数值
-    total_tardiness: float = 0.0  # 总拖期时间
-    max_inventory: float = 0.0  # 最大库存
-    constraint_penalty: float = 0.0  # 约束违规惩罚
+    max_tardiness: float = 0.0  # f1 最大拖期
+    avg_inventory: float = 0.0  # f2 平均库存
+    process_instability: float = 0.0  # f3 工艺不稳定性
 
     # Pareto相关
     rank: int = 0  # 非支配排序等级
@@ -94,7 +94,7 @@ class Solution:
 class StaticParameters:
     """静态参数配置"""
 
-    start_time = datetime.strptime("20260118", "%Y%m%d")
+    start_time = datetime.strptime("20260105", "%Y%m%d")
 
     # 产线顺序
     operation_sequence = [Operation.HR, Operation.AR, Operation.CA]
@@ -265,7 +265,7 @@ class NSGA2Solver:
 
         return assignment, sequences
 
-    def evaluate_solution(self, solution: Solution) -> Solution:
+    def evaluate_solution(self, solution: Solution, use_continuous_inventory: bool = True) -> Solution:
         """
         评估解的目标函数值
 
@@ -277,6 +277,7 @@ class NSGA2Solver:
 
         Args:
             solution: 待评估的解
+            use_continuous_inventory: 是否使用改进的连续库存计算方法
 
         Returns:
             评估后的解(更新目标函数值)
@@ -286,26 +287,95 @@ class NSGA2Solver:
         solution.schedule_results = schedule_results
 
         # 计算目标函数
-        total_tardiness = 0.0
+        max_tardiness = 0.0
+
         for result in schedule_results:
             mat = self.materials[result.material_id]
-            # 完工时间(小时) -> 转换为天
-            completion_time = result.ca_end / 24.0
+            completion_days = result.ca_end / 24.0
             delivery_days = (mat.delivery_date - StaticParameters.start_time).days
-            tardiness = max(0, completion_time - delivery_days)
-            total_tardiness += tardiness
+            tardiness = max(0, completion_days - delivery_days)
+            max_tardiness = max(max_tardiness, tardiness)
 
-        # 计算库存(简化版: 使用最大在制品数量)
-        max_inventory = self._calculate_inventory(schedule_results)
+        # 计算库存
+        if use_continuous_inventory:
+            # 使用改进的连续库存计算方法
+            inventory = self._calculate_continuous_inventory(schedule_results)
+        else:
+            # 使用原有方法
+            inventory = self._calculate_inventory(schedule_results)
 
         # 计算约束违规惩罚
-        constraint_penalty = self._calculate_constraint_penalty(solution)
+        hr_switch = self._hr_switch_count(solution)
+        ar_jump = self._ar_width_jump(solution)
+        ca_switch = self._ca_thickness_switch(solution)
+        process_instability = (
+                5.0 * hr_switch +
+                1.0 * ar_jump +
+                10.0 * ca_switch
+        )
+        # constraint_penalty = self._calculate_constraint_penalty(solution)
 
-        solution.total_tardiness = total_tardiness
-        solution.max_inventory = max_inventory
-        solution.constraint_penalty = constraint_penalty
+        solution.max_tardiness = max_tardiness
+        solution.avg_inventory = inventory
+        solution.process_instability = process_instability
 
         return solution
+
+    def _hr_switch_count(self, solution: Solution) -> int:
+        """
+        计算HR切换次数
+
+        Args:
+            solution: 待评估的解
+
+        Returns:
+            切换次数
+        """
+        count = 0
+        seq = solution.hr_sequence
+        for i in range(len(seq) - 1):
+            if self.materials[seq[i]].category != self.materials[seq[i + 1]].category:
+                count += 1
+        return count
+
+    def _ar_width_jump(self, solution: Solution) -> float:
+        """
+        计算AR宽度跳变
+
+        Args:
+            solution: 待评估的解
+
+        Returns:
+            宽度跳变距离
+        """
+        jump = 0.0
+        for seq in solution.ar_sequences:
+            for i in range(len(seq) - 1):
+                w1 = self.materials[seq[i]].width
+                w2 = self.materials[seq[i + 1]].width
+                if w2 > w1:
+                    jump += (w2 - w1)
+        return jump
+
+    def _ca_thickness_switch(self, solution: Solution, delta: float = 0.15) -> int:
+        """
+        计算CA厚度切换次数
+
+        Args:
+            solution: 待评估的解
+            delta: 厚度阈值
+
+        Returns:
+            切换次数
+        """
+        switches = 0
+        for seq in solution.ca_sequences:
+            for i in range(len(seq) - 1):
+                t1 = self.materials[seq[i]].thickness
+                t2 = self.materials[seq[i + 1]].thickness
+                if abs(t2 - t1) > delta:
+                    switches += 1
+        return switches
 
     def _simulate_schedule(self, solution: Solution) -> List[ScheduleResult]:
         """
@@ -426,6 +496,58 @@ class NSGA2Solver:
 
         return float(max_inventory)
 
+    def _calculate_continuous_inventory(self, schedule_results: List[ScheduleResult]) -> float:
+        """
+        计算连续生产的库存水平(改进版)
+
+        采用更细颗粒度的方法，考虑生产和运输连续性
+        按重量统计，按时间段(2小时)采样
+
+        Args:
+            schedule_results: 调度结果
+
+        Returns:
+            平均库存水平(吨)
+        """
+        # 获取调度结束时间
+        max_time = max(result.ca_end for result in schedule_results)
+
+        # 采样间隔(2小时)
+        sample_interval = 0.5
+
+        # 存储各时间段的库存
+        inventory_samples = []
+
+        # 按时间间隔采样库存
+        current_time = 0.0
+        while current_time <= max_time:
+            # 计算当前时间点的在制品库存
+            hr_to_ar_inventory = 0.0  # 热轧后等待酸轧的库存
+            ar_to_ca_inventory = 0.0  # 酸轧后等待连退的库存
+
+            for result in schedule_results:
+                mat_weight = self.materials[result.material_id].weight
+
+                # 检查是否在热轧后等待酸轧区域
+                if result.hr_end <= current_time < result.ar_start:
+                    hr_to_ar_inventory += mat_weight
+
+                # 检查是否在酸轧后等待连退区域
+                if result.ar_end <= current_time < result.ca_start:
+                    ar_to_ca_inventory += mat_weight
+
+            total_inventory = hr_to_ar_inventory + ar_to_ca_inventory
+            inventory_samples.append(total_inventory)
+
+            current_time += sample_interval
+
+        # 返回平均库存水平，也可以返回峰值库存
+        if len(inventory_samples) > 0:
+            average_inventory = sum(inventory_samples) / len(inventory_samples)
+            return average_inventory
+        else:
+            return 0.0
+
     def _calculate_constraint_penalty(self, solution: Solution) -> float:
         """
         计算约束违规惩罚
@@ -529,8 +651,20 @@ class NSGA2Solver:
         better_in_any = False
 
         # 检查三个目标
-        objectives1 = [sol1.total_tardiness, sol1.max_inventory, sol1.constraint_penalty]
-        objectives2 = [sol2.total_tardiness, sol2.max_inventory, sol2.constraint_penalty]
+        # objectives1 = [sol1.max_tardiness, sol1.avg_inventory, sol1.process_instability]
+        # objectives2 = [sol2.max_tardiness, sol2.avg_inventory, sol2.process_instability]
+
+        objectives1 = [
+            sol1.max_tardiness,
+            sol1.avg_inventory,
+            sol1.process_instability
+        ]
+
+        objectives2 = [
+            sol2.max_tardiness,
+            sol2.avg_inventory,
+            sol2.process_instability
+        ]
 
         for obj1, obj2 in zip(objectives1, objectives2):
             if obj1 > obj2:  # sol1在某个目标上更差
@@ -558,7 +692,7 @@ class NSGA2Solver:
             sol.crowding_distance = 0.0
 
         # 对每个目标计算拥挤度
-        objectives = ['total_tardiness', 'max_inventory', 'constraint_penalty']
+        objectives = ['max_tardiness', 'avg_inventory', 'process_instability']
 
         for obj in objectives:
             # 按该目标排序
@@ -824,7 +958,7 @@ class NSGA2Solver:
         if verbose:
             print("评估初始种群...")
         for sol in population:
-            self.evaluate_solution(sol)
+            self.evaluate_solution(sol, use_continuous_inventory=True)
 
         # 3. 迭代进化
         for gen in range(n_generations):
@@ -837,14 +971,26 @@ class NSGA2Solver:
 
             # 打印当前代信息
             if verbose and (gen % 10 == 0 or gen == n_generations - 1):
-                best_tardiness = min(sol.total_tardiness for sol in fronts[0])
-                best_inventory = min(sol.max_inventory for sol in fronts[0])
-                avg_penalty = np.mean([sol.constraint_penalty for sol in fronts[0]])
-                print(f"代数 {gen+1}/{n_generations}: "
-                      f"Pareto前沿大小={len(fronts[0])}, "
-                      f"最优拖期={best_tardiness:.2f}天, "
-                      f"最优库存={best_inventory:.1f}, "
-                      f"平均惩罚={avg_penalty:.2f}")
+                best_tardiness = min(sol.max_tardiness for sol in fronts[0])
+                best_inventory = min(sol.avg_inventory for sol in fronts[0])
+                avg_instability = np.mean([sol.process_instability for sol in fronts[0]])
+
+                print(
+                    f"代数 {gen + 1}/{n_generations}: "
+                    f"Pareto={len(fronts[0])}, "
+                    f"Max拖期={best_tardiness:.2f}, "
+                    f"库存={best_inventory:.1f}, "
+                    f"工艺不稳={avg_instability:.1f}"
+                )
+
+                # best_tardiness = min(sol.max_tardiness for sol in fronts[0])
+                # best_inventory = min(sol.avg_inventory for sol in fronts[0])
+                # avg_penalty = np.mean([sol.process_instability for sol in fronts[0]])
+                # print(f"代数 {gen+1}/{n_generations}: "
+                #       f"Pareto前沿大小={len(fronts[0])}, "
+                #       f"最优拖期={best_tardiness:.2f}天, "
+                #       f"最优库存={best_inventory:.1f}, "
+                #       f"平均惩罚={avg_penalty:.2f}")
 
             # 选择
             offspring_size = pop_size
@@ -860,7 +1006,7 @@ class NSGA2Solver:
 
             # 评估子代
             for sol in offspring:
-                self.evaluate_solution(sol)
+                self.evaluate_solution(sol, use_continuous_inventory=True)
 
             # 合并父代和子代
             combined = population + offspring
@@ -980,7 +1126,7 @@ if __name__ == "__main__":
     print("-" * 80)
 
     pareto_front = solver.solve(
-        pop_size=100,
+        pop_size=150,
         n_generations=200,
         mutation_rate=0.15,
         verbose=True
@@ -996,13 +1142,13 @@ if __name__ == "__main__":
     print("-" * 80)
 
     # 按拖期排序
-    pareto_front_sorted = sorted(pareto_front, key=lambda x: x.total_tardiness)
+    pareto_front_sorted = sorted(pareto_front, key=lambda x: x.max_tardiness)
 
     for i, sol in enumerate(pareto_front_sorted[:5]):
         print(f"\n方案 {i+1}:")
-        print(f"  总拖期: {sol.total_tardiness:.2f} 天")
-        print(f"  最大库存: {sol.max_inventory:.1f} 个材料")
-        print(f"  约束惩罚: {sol.constraint_penalty:.2f}")
+        print(f"  总拖期: {sol.max_tardiness:.2f} 天")
+        print(f"  库存水平: {sol.avg_inventory:.1f} 吨")
+        print(f"  工艺不稳: {sol.process_instability:.2f}")
 
         # 统计每台机器的负载
         ar_loads = [len(seq) for seq in sol.ar_sequences]
@@ -1017,8 +1163,9 @@ if __name__ == "__main__":
     visualizer = Visualizer(materials)
     visualizer.plot_pareto_front(pareto_front, save_path="pareto_front.png")
     visualizer.plot_pareto_2d(pareto_front, save_path="pareto_front_2d.png")
-    for i, sol in enumerate(pareto_front_sorted[:5]):
-        visualizer.plot_inventory_curve(sol, save_path=f"inventory_curve_{i+1}.png")
-        visualizer.plot_gantt_chart(sol, save_path=f"gantt_chart_{i+1}.png")
+    # for i, sol in enumerate(pareto_front_sorted[:5]):
+    #     visualizer.plot_inventory_curve(sol, save_path=f"inventory_curve_{i+1}.png")
+    #     visualizer.plot_gantt_chart(sol, save_path=f"gantt_chart_{i+1}.png")
+
 
 

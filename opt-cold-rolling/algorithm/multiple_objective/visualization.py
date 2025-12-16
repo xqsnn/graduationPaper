@@ -14,7 +14,7 @@ from matplotlib.font_manager import FontProperties
 import pandas as pd
 import numpy as np
 from typing import List
-from nsga2_solver import Solution, Material, ScheduleResult, Operation
+from nsga2_solver import Solution, Material, ScheduleResult, Operation, StaticParameters
 import os
 
 
@@ -47,9 +47,9 @@ class Visualizer:
         ax = fig.add_subplot(111, projection='3d')
 
         # 提取目标值
-        tardiness = [sol.total_tardiness for sol in pareto_solutions]
-        inventory = [sol.max_inventory for sol in pareto_solutions]
-        penalty = [sol.constraint_penalty for sol in pareto_solutions]
+        tardiness = [sol.max_tardiness for sol in pareto_solutions]
+        inventory = [sol.avg_inventory for sol in pareto_solutions]
+        penalty = [sol.process_instability for sol in pareto_solutions]
 
         # 绘制散点
         scatter = ax.scatter(tardiness, inventory, penalty,
@@ -57,8 +57,8 @@ class Visualizer:
                             s=100, alpha=0.6, edgecolors='black')
 
         ax.set_xlabel('总拖期 (天)', fontsize=12, labelpad=10)
-        ax.set_ylabel('最大库存 (件)', fontsize=12, labelpad=10)
-        ax.set_zlabel('约束惩罚', fontsize=12, labelpad=10)
+        ax.set_ylabel('平均库存 (吨)', fontsize=12, labelpad=10)
+        ax.set_zlabel('工艺不稳', fontsize=12, labelpad=10)
         ax.set_title('Pareto前沿 - 三目标优化结果', fontsize=14, pad=20)
 
         # 添加颜色条
@@ -83,9 +83,9 @@ class Visualizer:
         """
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        tardiness = [sol.total_tardiness for sol in pareto_solutions]
-        inventory = [sol.max_inventory for sol in pareto_solutions]
-        penalty = [sol.constraint_penalty for sol in pareto_solutions]
+        tardiness = [sol.max_tardiness for sol in pareto_solutions]
+        inventory = [sol.avg_inventory for sol in pareto_solutions]
+        penalty = [sol.process_instability for sol in pareto_solutions]
 
         # 使用惩罚值作为颜色
         scatter = ax.scatter(tardiness, inventory, c=penalty,
@@ -93,7 +93,7 @@ class Visualizer:
                             edgecolors='black', linewidths=1.5)
 
         ax.set_xlabel('总拖期 (天)', fontsize=12)
-        ax.set_ylabel('最大库存 (件)', fontsize=12)
+        ax.set_ylabel('平均库存 (吨)', fontsize=12)
         ax.set_title('Pareto前沿 - 拖期 vs 库存', fontsize=14)
         ax.grid(True, alpha=0.3)
 
@@ -129,33 +129,41 @@ class Visualizer:
         colors = plt.cm.Set3(np.linspace(0, 1, len(categories)))
         category_color_map = dict(zip(categories, colors))
 
+        # 使用StaticParameters.start_time作为起始时间
+        start_time = StaticParameters.start_time
+
         # 1. 热轧甘特图
         ax = axes[0]
         ax.set_title('热轧工序 (1台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (小时)', fontsize=10)
+        ax.set_xlabel('时间 (真实时间)', fontsize=10)
         ax.set_ylabel('机器', fontsize=10)
 
         for result in solution.schedule_results:
             mat = self.materials[result.material_id]
             color = category_color_map[mat.category]
 
-            ax.barh(0, result.hr_end - result.hr_start,
-                   left=result.hr_start, height=0.6,
+            # 将相对时间转换为真实时间
+            hr_start_time = start_time + pd.Timedelta(hours=result.hr_start)
+            hr_duration = result.hr_end - result.hr_start
+
+            ax.barh(0, hr_duration,
+                   left=hr_start_time, height=0.6,
                    color=color, edgecolor='black', linewidth=0.5)
 
             # 添加材料ID标签
-            mid_point = (result.hr_start + result.hr_end) / 2
-            ax.text(mid_point, 0, f'{mat.id}',
+            mid_time = hr_start_time + pd.Timedelta(hours=hr_duration/2)
+            ax.text(mid_time, 0, f'{mat.id}',
                    ha='center', va='center', fontsize=8)
 
         ax.set_yticks([0])
         ax.set_yticklabels(['HR-1'])
         ax.grid(True, axis='x', alpha=0.3)
+        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
 
         # 2. 酸轧甘特图
         ax = axes[1]
         ax.set_title('酸轧工序 (2台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (小时)', fontsize=10)
+        ax.set_xlabel('时间 (真实时间)', fontsize=10)
         ax.set_ylabel('机器', fontsize=10)
 
         for result in solution.schedule_results:
@@ -163,22 +171,27 @@ class Visualizer:
             color = category_color_map[mat.category]
             y_pos = result.ar_machine
 
-            ax.barh(y_pos, result.ar_end - result.ar_start,
-                   left=result.ar_start, height=0.6,
+            # 将相对时间转换为真实时间
+            ar_start_time = start_time + pd.Timedelta(hours=result.ar_start)
+            ar_duration = result.ar_end - result.ar_start
+
+            ax.barh(y_pos, ar_duration,
+                   left=ar_start_time, height=0.6,
                    color=color, edgecolor='black', linewidth=0.5)
 
-            mid_point = (result.ar_start + result.ar_end) / 2
-            ax.text(mid_point, y_pos, f'{mat.id}',
+            mid_time = ar_start_time + pd.Timedelta(hours=ar_duration/2)
+            ax.text(mid_time, y_pos, f'{mat.id}',
                    ha='center', va='center', fontsize=8)
 
         ax.set_yticks([0, 1])
         ax.set_yticklabels(['AR-1', 'AR-2'])
         ax.grid(True, axis='x', alpha=0.3)
+        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
 
         # 3. 连退甘特图
         ax = axes[2]
         ax.set_title('连退工序 (3台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (小时)', fontsize=10)
+        ax.set_xlabel('时间 (真实时间)', fontsize=10)
         ax.set_ylabel('机器', fontsize=10)
 
         for result in solution.schedule_results:
@@ -186,17 +199,22 @@ class Visualizer:
             color = category_color_map[mat.category]
             y_pos = result.ca_machine
 
-            ax.barh(y_pos, result.ca_end - result.ca_start,
-                   left=result.ca_start, height=0.6,
+            # 将相对时间转换为真实时间
+            ca_start_time = start_time + pd.Timedelta(hours=result.ca_start)
+            ca_duration = result.ca_end - result.ca_start
+
+            ax.barh(y_pos, ca_duration,
+                   left=ca_start_time, height=0.6,
                    color=color, edgecolor='black', linewidth=0.5)
 
-            mid_point = (result.ca_start + result.ca_end) / 2
-            ax.text(mid_point, y_pos, f'{mat.id}',
+            mid_time = ca_start_time + pd.Timedelta(hours=ca_duration/2)
+            ax.text(mid_time, y_pos, f'{mat.id}',
                    ha='center', va='center', fontsize=8)
 
         ax.set_yticks([0, 1, 2])
         ax.set_yticklabels(['CA-1', 'CA-2', 'CA-3'])
         ax.grid(True, axis='x', alpha=0.3)
+        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
 
         # 添加图例
         legend_patches = [mpatches.Patch(color=category_color_map[cat], label=f'钢种 {cat}')
@@ -224,18 +242,21 @@ class Visualizer:
             print("错误: 解未包含调度结果")
             return
 
+        # 使用StaticParameters.start_time作为起始时间
+        start_time = StaticParameters.start_time
+
         # 构建时间事件列表
         events_hr = []  # 热轧后库存
         events_ar = []  # 酸轧后库存
 
         for result in solution.schedule_results:
             # 热轧后库存变化
-            events_hr.append((result.hr_end, 1))  # 进入库存
-            events_hr.append((result.ar_start, -1))  # 离开库存
+            events_hr.append((start_time + pd.Timedelta(hours=result.hr_end), 1))  # 进入库存
+            events_hr.append((start_time + pd.Timedelta(hours=result.ar_start), -1))  # 离开库存
 
             # 酸轧后库存变化
-            events_ar.append((result.ar_end, 1))
-            events_ar.append((result.ca_start, -1))
+            events_ar.append((start_time + pd.Timedelta(hours=result.ar_end), 1))
+            events_ar.append((start_time + pd.Timedelta(hours=result.ca_start), -1))
 
         # 排序事件
         events_hr.sort()
@@ -243,7 +264,7 @@ class Visualizer:
 
         # 计算库存曲线
         def compute_inventory_curve(events):
-            times = [0]
+            times = [start_time]
             inventory = [0]
             current_inv = 0
 
@@ -270,19 +291,17 @@ class Visualizer:
         ax.set_ylabel('库存数量 (件)', fontsize=11)
         ax.set_title('热轧后仓库库存', fontsize=12)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(left=0)
-        ax.set_ylim(bottom=0)
+        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
 
         # 酸轧后库存
         ax = axes[1]
         ax.plot(times_ar, inventory_ar, linewidth=2, color='coral')
         ax.fill_between(times_ar, inventory_ar, alpha=0.3, color='coral')
-        ax.set_xlabel('时间 (小时)', fontsize=11)
+        ax.set_xlabel('时间 (真实时间)', fontsize=11)
         ax.set_ylabel('库存数量 (件)', fontsize=11)
         ax.set_title('酸轧后仓库库存', fontsize=12)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(left=0)
-        ax.set_ylim(bottom=0)
+        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
 
         plt.tight_layout()
 
@@ -307,9 +326,9 @@ class Visualizer:
             for i, sol in enumerate(pareto_solutions):
                 summary_data.append({
                     '方案编号': i + 1,
-                    '总拖期(天)': round(sol.total_tardiness, 2),
-                    '最大库存(件)': round(sol.max_inventory, 1),
-                    '约束惩罚': round(sol.constraint_penalty, 2),
+                    '总拖期(天)': round(sol.max_tardiness, 2),
+                    '平均库存(吨)': round(sol.avg_inventory, 1),
+                    '工艺不稳': round(sol.process_instability, 2),
                     'Pareto等级': sol.rank,
                     '拥挤度': round(sol.crowding_distance, 4)
                 })
@@ -318,7 +337,7 @@ class Visualizer:
             df_summary.to_excel(writer, sheet_name='Pareto解摘要', index=False)
 
             # 2. 详细调度结果(选择最优解)
-            best_sol = min(pareto_solutions, key=lambda x: x.total_tardiness)
+            best_sol = min(pareto_solutions, key=lambda x: x.max_tardiness)
 
             if best_sol.schedule_results:
                 schedule_data = []
@@ -409,9 +428,9 @@ def analyze_solution_quality(pareto_solutions: List[Solution], materials: List[M
     print("=" * 80)
 
     # 统计信息
-    tardiness_values = [sol.total_tardiness for sol in pareto_solutions]
-    inventory_values = [sol.max_inventory for sol in pareto_solutions]
-    penalty_values = [sol.constraint_penalty for sol in pareto_solutions]
+    tardiness_values = [sol.max_tardiness for sol in pareto_solutions]
+    inventory_values = [sol.avg_inventory for sol in pareto_solutions]
+    penalty_values = [sol.process_instability for sol in pareto_solutions]
 
     print(f"\nPareto最优解数量: {len(pareto_solutions)}")
     print("\n目标函数统计:")
@@ -422,7 +441,7 @@ def analyze_solution_quality(pareto_solutions: List[Solution], materials: List[M
     print(f"  平均值: {np.mean(tardiness_values):.2f}")
     print(f"  标准差: {np.std(tardiness_values):.2f}")
 
-    print(f"\n最大库存 (件):")
+    print(f"\n平均库存 (吨):")
     print(f"  最小值: {min(inventory_values):.1f}")
     print(f"  最大值: {max(inventory_values):.1f}")
     print(f"  平均值: {np.mean(inventory_values):.1f}")
@@ -433,23 +452,23 @@ def analyze_solution_quality(pareto_solutions: List[Solution], materials: List[M
     print(f"  平均值: {np.mean(penalty_values):.2f}")
 
     # 找到极端解
-    best_tardiness = min(pareto_solutions, key=lambda x: x.total_tardiness)
-    best_inventory = min(pareto_solutions, key=lambda x: x.max_inventory)
-    best_penalty = min(pareto_solutions, key=lambda x: x.constraint_penalty)
+    best_tardiness = min(pareto_solutions, key=lambda x: x.max_tardiness)
+    best_inventory = min(pareto_solutions, key=lambda x: x.avg_inventory)
+    best_penalty = min(pareto_solutions, key=lambda x: x.process_instability)
 
     print("\n极端Pareto解:")
     print("-" * 80)
-    print(f"最优拖期解: 拖期={best_tardiness.total_tardiness:.2f}天, "
-          f"库存={best_tardiness.max_inventory:.1f}, "
-          f"惩罚={best_tardiness.constraint_penalty:.2f}")
+    print(f"最优拖期解: 拖期={best_tardiness.max_tardiness:.2f}天, "
+          f"库存={best_tardiness.avg_inventory:.1f}, "
+          f"工艺不稳={best_tardiness.process_instability:.2f}")
 
-    print(f"最优库存解: 拖期={best_inventory.total_tardiness:.2f}天, "
-          f"库存={best_inventory.max_inventory:.1f}, "
-          f"惩罚={best_inventory.constraint_penalty:.2f}")
+    print(f"最优库存解: 拖期={best_inventory.max_tardiness:.2f}天, "
+          f"库存={best_inventory.avg_inventory:.1f}, "
+          f"工艺不稳={best_inventory.process_instability:.2f}")
 
-    print(f"最优约束解: 拖期={best_penalty.total_tardiness:.2f}天, "
-          f"库存={best_penalty.max_inventory:.1f}, "
-          f"惩罚={best_penalty.constraint_penalty:.2f}")
+    print(f"最优约束解: 拖期={best_penalty.max_tardiness:.2f}天, "
+          f"库存={best_penalty.avg_inventory:.1f}, "
+          f"工艺不稳={best_penalty.process_instability:.2f}")
 
     # 分析拖期情况
     if best_tardiness.schedule_results:
