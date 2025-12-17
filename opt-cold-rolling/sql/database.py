@@ -13,7 +13,7 @@ DB_PATH = os.path.join(PROJECT_ROOT, "sql", "cold_rolling.db")
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 # 创建数据库引擎
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 # 创建会话
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

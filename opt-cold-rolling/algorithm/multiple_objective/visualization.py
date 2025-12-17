@@ -8,19 +8,14 @@
 4. 结果导出
 """
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.font_manager import FontProperties
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.express as px
 import pandas as pd
 import numpy as np
 from typing import List
 from nsga2_solver import Solution, Material, ScheduleResult, Operation, StaticParameters
 import os
-
-
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']  # 用黑体显示中文
-plt.rcParams['axes.unicode_minus'] = False  # 正常显示负号
 
 
 class Visualizer:
@@ -43,35 +38,45 @@ class Visualizer:
             pareto_solutions: Pareto最优解集
             save_path: 保存路径
         """
-        fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection='3d')
-
         # 提取目标值
         tardiness = [sol.max_tardiness for sol in pareto_solutions]
         inventory = [sol.avg_inventory for sol in pareto_solutions]
         penalty = [sol.process_instability for sol in pareto_solutions]
 
-        # 绘制散点
-        scatter = ax.scatter(tardiness, inventory, penalty,
-                            c=tardiness, cmap='viridis',
-                            s=100, alpha=0.6, edgecolors='black')
+        # 创建3D散点图
+        fig = go.Figure(data=[go.Scatter3d(
+            x=tardiness,
+            y=inventory,
+            z=penalty,
+            mode='markers',
+            marker=dict(
+                size=6,
+                color=tardiness,  # 根据总拖期设置颜色
+                colorscale='Viridis',
+                opacity=0.8,
+                line=dict(width=1, color='black')
+            ),
+            text=[f'拖期: {t:.2f}<br>库存: {i:.2f}<br>工艺不稳: {p:.2f}'
+                  for t, i, p in zip(tardiness, inventory, penalty)],
+            hovertemplate='<b>%{text}</b><extra></extra>'
+        )])
 
-        ax.set_xlabel('总拖期 (天)', fontsize=12, labelpad=10)
-        ax.set_ylabel('平均库存 (吨)', fontsize=12, labelpad=10)
-        ax.set_zlabel('工艺不稳', fontsize=12, labelpad=10)
-        ax.set_title('Pareto前沿 - 三目标优化结果', fontsize=14, pad=20)
-
-        # 添加颜色条
-        cbar = plt.colorbar(scatter, ax=ax, shrink=0.5, aspect=5)
-        cbar.set_label('总拖期 (天)', fontsize=10)
-
-        plt.tight_layout()
+        fig.update_layout(
+            title='Pareto前沿 - 三目标优化结果',
+            scene=dict(
+                xaxis_title='总拖期 (天)',
+                yaxis_title='平均库存 (吨)',
+                zaxis_title='工艺不稳'
+            ),
+            width=800,
+            height=600
+        )
 
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            fig.write_image(save_path)
             print(f"Pareto前沿图已保存至: {save_path}")
 
-        plt.show()
+        fig.show()
 
     def plot_pareto_2d(self, pareto_solutions: List[Solution], save_path: str = None):
         """
@@ -81,37 +86,50 @@ class Visualizer:
             pareto_solutions: Pareto最优解集
             save_path: 保存路径
         """
-        fig, ax = plt.subplots(figsize=(10, 6))
-
         tardiness = [sol.max_tardiness for sol in pareto_solutions]
         inventory = [sol.avg_inventory for sol in pareto_solutions]
         penalty = [sol.process_instability for sol in pareto_solutions]
 
-        # 使用惩罚值作为颜色
-        scatter = ax.scatter(tardiness, inventory, c=penalty,
-                            cmap='RdYlGn_r', s=100, alpha=0.7,
-                            edgecolors='black', linewidths=1.5)
+        # 创建散点图
+        fig = go.Figure(data=go.Scatter(
+            x=tardiness,
+            y=inventory,
+            mode='markers',
+            marker=dict(
+                size=12,
+                color=penalty,
+                colorscale='RdYlGn_r',
+                showscale=True,
+                colorbar=dict(title="约束惩罚"),
+                opacity=0.7,
+                line=dict(width=1.5, color='black')
+            ),
+            text=[f'拖期: {t:.2f}<br>库存: {i:.2f}<br>工艺不稳: {p:.2f}'
+                  for t, i, p in zip(tardiness, inventory, penalty)],
+            hovertemplate='<b>%{text}</b><extra></extra>'
+        ))
 
-        ax.set_xlabel('总拖期 (天)', fontsize=12)
-        ax.set_ylabel('平均库存 (吨)', fontsize=12)
-        ax.set_title('Pareto前沿 - 拖期 vs 库存', fontsize=14)
-        ax.grid(True, alpha=0.3)
+        fig.update_layout(
+            title='Pareto前沿 - 拖期 vs 库存',
+            xaxis_title='总拖期 (天)',
+            yaxis_title='平均库存 (吨)',
+            width=800,
+            height=600
+        )
 
-        # 添加颜色条
-        cbar = plt.colorbar(scatter, ax=ax)
-        cbar.set_label('约束惩罚', fontsize=10)
-
-        plt.tight_layout()
+        # 添加网格
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
 
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            fig.write_image(save_path)
             print(f"2D Pareto前沿图已保存至: {save_path}")
 
-        plt.show()
+        fig.show()
 
     def plot_gantt_chart(self, solution: Solution, save_path: str = None):
         """
-        绘制甘特图 - 显示调度方案
+        绘制甘特图 - 显示调度方案（所有工序在一个图中）
 
         Args:
             solution: 调度方案
@@ -121,114 +139,152 @@ class Visualizer:
             print("错误: 解未包含调度结果")
             return
 
-        fig, axes = plt.subplots(3, 1, figsize=(16, 12))
-        fig.suptitle('生产调度甘特图', fontsize=16, y=0.995)
-
         # 为不同钢种分配颜色
         categories = list(set(mat.category for mat in self.materials))
-        colors = plt.cm.Set3(np.linspace(0, 1, len(categories)))
+        # 生成颜色映射（使用plotly的颜色序列）
+        colors = px.colors.qualitative.Set3[:len(categories)]
         category_color_map = dict(zip(categories, colors))
 
         # 使用StaticParameters.start_time作为起始时间
         start_time = StaticParameters.start_time
 
-        # 1. 热轧甘特图
-        ax = axes[0]
-        ax.set_title('热轧工序 (1台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (真实时间)', fontsize=10)
-        ax.set_ylabel('机器', fontsize=10)
+        # 定义每台机器的y轴位置
+        machine_positions = {
+            'HR-1': 0,
+            'AR-1': 1,
+            'AR-2': 2,
+            'CA-1': 3,
+            'CA-2': 4,
+            'CA-3': 5
+        }
 
+        # 准备甘特图数据
+        df_data = []
         for result in solution.schedule_results:
             mat = self.materials[result.material_id]
-            color = category_color_map[mat.category]
 
-            # 将相对时间转换为真实时间
+            # 热轧工序
             hr_start_time = start_time + pd.Timedelta(hours=result.hr_start)
-            hr_duration = result.hr_end - result.hr_start
+            hr_end_time = start_time + pd.Timedelta(hours=result.hr_end)
+            df_data.append({
+                'Task': f'HR-1',
+                'Start': hr_start_time,
+                'Finish': hr_end_time,
+                'Material': f"order_{mat.id}",
+                'Category': mat.category,
+                'Operation': '热轧'
+            })
 
-            ax.barh(0, hr_duration,
-                   left=hr_start_time, height=0.6,
-                   color=color, edgecolor='black', linewidth=0.5)
+            # 酸轧工序
+            ar_machine_key = f'AR-{result.ar_machine + 1}'
+            if ar_machine_key not in machine_positions:
+                print(f"警告: 无效的酸轧机器编号 {ar_machine_key}")
+                continue
 
-            # 添加材料ID标签
-            mid_time = hr_start_time + pd.Timedelta(hours=hr_duration/2)
-            ax.text(mid_time, 0, f'{mat.id}',
-                   ha='center', va='center', fontsize=8)
-
-        ax.set_yticks([0])
-        ax.set_yticklabels(['HR-1'])
-        ax.grid(True, axis='x', alpha=0.3)
-        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
-
-        # 2. 酸轧甘特图
-        ax = axes[1]
-        ax.set_title('酸轧工序 (2台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (真实时间)', fontsize=10)
-        ax.set_ylabel('机器', fontsize=10)
-
-        for result in solution.schedule_results:
-            mat = self.materials[result.material_id]
-            color = category_color_map[mat.category]
-            y_pos = result.ar_machine
-
-            # 将相对时间转换为真实时间
             ar_start_time = start_time + pd.Timedelta(hours=result.ar_start)
-            ar_duration = result.ar_end - result.ar_start
+            ar_end_time = start_time + pd.Timedelta(hours=result.ar_end)
+            df_data.append({
+                'Task': ar_machine_key,
+                'Start': ar_start_time,
+                'Finish': ar_end_time,
+                'Material': f"order_{mat.id}",
+                'Category': mat.category,
+                'Operation': '酸轧'
+            })
 
-            ax.barh(y_pos, ar_duration,
-                   left=ar_start_time, height=0.6,
-                   color=color, edgecolor='black', linewidth=0.5)
+            # 连退工序
+            ca_machine_key = f'CA-{result.ca_machine + 1}'
+            if ca_machine_key not in machine_positions:
+                print(f"警告: 无效的连退机器编号 {ca_machine_key}")
+                continue
 
-            mid_time = ar_start_time + pd.Timedelta(hours=ar_duration/2)
-            ax.text(mid_time, y_pos, f'{mat.id}',
-                   ha='center', va='center', fontsize=8)
-
-        ax.set_yticks([0, 1])
-        ax.set_yticklabels(['AR-1', 'AR-2'])
-        ax.grid(True, axis='x', alpha=0.3)
-        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
-
-        # 3. 连退甘特图
-        ax = axes[2]
-        ax.set_title('连退工序 (3台机器)', fontsize=12, pad=10)
-        ax.set_xlabel('时间 (真实时间)', fontsize=10)
-        ax.set_ylabel('机器', fontsize=10)
-
-        for result in solution.schedule_results:
-            mat = self.materials[result.material_id]
-            color = category_color_map[mat.category]
-            y_pos = result.ca_machine
-
-            # 将相对时间转换为真实时间
             ca_start_time = start_time + pd.Timedelta(hours=result.ca_start)
-            ca_duration = result.ca_end - result.ca_start
+            ca_end_time = start_time + pd.Timedelta(hours=result.ca_end)
+            df_data.append({
+                'Task': ca_machine_key,
+                'Start': ca_start_time,
+                'Finish': ca_end_time,
+                'Material': f"order_{mat.id}",
+                'Category': mat.category,
+                'Operation': '连退'
+            })
 
-            ax.barh(y_pos, ca_duration,
-                   left=ca_start_time, height=0.6,
-                   color=color, edgecolor='black', linewidth=0.5)
+        df = pd.DataFrame(df_data)
 
-            mid_time = ca_start_time + pd.Timedelta(hours=ca_duration/2)
-            ax.text(mid_time, y_pos, f'{mat.id}',
-                   ha='center', va='center', fontsize=8)
+        # 使用plotly express的timeline函数更适合处理时间范围
+        fig = px.timeline(
+            df,
+            x_start="Start",
+            x_end="Finish",
+            y="Task",
+            color="Category",
+            title="生产调度甘特图 - 所有机床",
+            labels={"Task": "机器", "Material": "材料"},
+            color_discrete_map=category_color_map
+        )
 
-        ax.set_yticks([0, 1, 2])
-        ax.set_yticklabels(['CA-1', 'CA-2', 'CA-3'])
-        ax.grid(True, axis='x', alpha=0.3)
-        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
+        # 设置文本和悬停模板
+        # 假设你想显示：订单、钢种、工序类型、开始/结束时间（字符串格式）
+        df['Start_str'] = df['Start'].dt.strftime('%Y-%m-%d %H:%M')
+        df['Finish_str'] = df['Finish'].dt.strftime('%Y-%m-%d %H:%M')
+
+        # 定义要传入 customdata 的列（顺序很重要！）
+        custom_cols = ['Material', 'Category', 'Operation', 'Start_str', 'Finish_str']
+
+        fig.update_traces(
+            text=None,  # 不在色块上显示任何文字
+            customdata=df[custom_cols].values,
+            hovertemplate=(
+                    "<b>订单:</b> %{customdata[0]}<br>" +
+                    "<b>钢种:</b> %{customdata[1]}<br>" +
+                    "<b>工序:</b> %{customdata[2]}<br>" +
+                    "<b>开始:</b> %{customdata[3]}<br>" +
+                    "<b>结束:</b> %{customdata[4]}<extra></extra>"
+            )
+        )
+
+        fig.update_layout(
+            title='生产调度甘特图 - 所有机床',
+            xaxis_title='时间',
+            yaxis_title='机器'
+        )
+
+        # 设置x轴格式
+        fig.update_xaxes(
+            type='date',
+            tickformat='%m-%d\n%H:%M',  # 格式化为月-日\n时:分
+            title_text='时间'
+        )
+
+        fig.update_yaxes(
+            title_text='机器',
+            categoryorder='array',
+            categoryarray=['CA-3', 'CA-2', 'CA-1', 'AR-2', 'AR-1', 'HR-1']  # HR-1 在最后 → 显示在最上方
+        )
+
+        fig.update_layout(
+            title='生产调度甘特图 - 所有机床',
+            xaxis_title='时间',
+            yaxis_title='机器',
+            barmode='overlay',
+            bargap=0.2,
+            width=1200,
+            height=600
+        )
+
+        # 设置x轴格式
+        fig.update_xaxes(type='date')
+
+        # 添加垂直线表示机器分隔
 
         # 添加图例
-        legend_patches = [mpatches.Patch(color=category_color_map[cat], label=f'钢种 {cat}')
-                         for cat in categories]
-        fig.legend(handles=legend_patches, loc='upper right',
-                  bbox_to_anchor=(0.98, 0.98), fontsize=10)
-
-        plt.tight_layout()
+        fig.update_layout(legend_title_text='钢种')
 
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            fig.write_image(save_path)
             print(f"甘特图已保存至: {save_path}")
 
-        plt.show()
+        fig.show()
 
     def plot_inventory_curve(self, solution: Solution, save_path: str = None):
         """
@@ -280,36 +336,68 @@ class Visualizer:
         times_hr, inventory_hr = compute_inventory_curve(events_hr)
         times_ar, inventory_ar = compute_inventory_curve(events_ar)
 
-        # 绘图
-        fig, axes = plt.subplots(2, 1, figsize=(12, 8))
-        fig.suptitle('库存变化曲线', fontsize=14)
+        # 创建子图
+        fig = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=('热轧后仓库库存', '酸轧后仓库库存'),
+            vertical_spacing=0.1
+        )
 
-        # 热轧后库存
-        ax = axes[0]
-        ax.plot(times_hr, inventory_hr, linewidth=2, color='steelblue')
-        ax.fill_between(times_hr, inventory_hr, alpha=0.3, color='steelblue')
-        ax.set_ylabel('库存数量 (件)', fontsize=11)
-        ax.set_title('热轧后仓库库存', fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
+        # 热轧后库存曲线
+        fig.add_trace(
+            go.Scatter(
+                x=times_hr,
+                y=inventory_hr,
+                mode='lines',
+                line=dict(color='steelblue', width=2),
+                fill='tonexty',  # 填充下方区域
+                fillcolor='rgba(70, 130, 180, 0.3)',  # steelblue的透明版本
+                name='热轧后库存',
+                hovertemplate='<b>时间:</b> %{x}<br><b>库存数量:</b> %{y}<extra></extra>'
+            ),
+            row=1, col=1
+        )
 
-        # 酸轧后库存
-        ax = axes[1]
-        ax.plot(times_ar, inventory_ar, linewidth=2, color='coral')
-        ax.fill_between(times_ar, inventory_ar, alpha=0.3, color='coral')
-        ax.set_xlabel('时间 (真实时间)', fontsize=11)
-        ax.set_ylabel('库存数量 (件)', fontsize=11)
-        ax.set_title('酸轧后仓库库存', fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%m-%d\n%H:%M'))
+        # 酸轧后库存曲线
+        fig.add_trace(
+            go.Scatter(
+                x=times_ar,
+                y=inventory_ar,
+                mode='lines',
+                line=dict(color='coral', width=2),
+                fill='tonexty',  # 填充下方区域
+                fillcolor='rgba(255, 127, 80, 0.3)',  # coral的透明版本
+                name='酸轧后库存',
+                hovertemplate='<b>时间:</b> %{x}<br><b>库存数量:</b> %{y}<extra></extra>'
+            ),
+            row=2, col=1
+        )
 
-        plt.tight_layout()
+        # 更新布局
+        fig.update_layout(
+            title_text='库存变化曲线',
+            height=600,
+            showlegend=False
+        )
+
+        # 设置y轴标题
+        fig.update_yaxes(title_text='库存数量 (件)', row=1, col=1)
+        fig.update_yaxes(title_text='库存数量 (件)', row=2, col=1)
+
+        # 设置x轴标题
+        fig.update_xaxes(title_text='时间 (真实时间)', row=2, col=1)
+
+        # 设置网格
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=1, col=1)
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=1, col=1)
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=2, col=1)
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=2, col=1)
 
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            fig.write_image(save_path)
             print(f"库存曲线图已保存至: {save_path}")
 
-        plt.show()
+        fig.show()
 
     def export_results_to_excel(self, pareto_solutions: List[Solution],
                                 output_path: str = "results.xlsx"):
@@ -394,25 +482,38 @@ def plot_convergence_curve(history: List[float], save_path: str = None):
         history: 每代的最优目标值历史
         save_path: 保存路径
     """
-    fig, ax = plt.subplots(figsize=(10, 6))
+    generations = list(range(1, len(history) + 1))
 
-    ax.plot(range(1, len(history) + 1), history,
-           linewidth=2, marker='o', markersize=4,
-           color='steelblue', label='最优解')
+    fig = go.Figure()
 
-    ax.set_xlabel('迭代代数', fontsize=12)
-    ax.set_ylabel('最优总拖期 (天)', fontsize=12)
-    ax.set_title('算法收敛曲线', fontsize=14)
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=11)
+    fig.add_trace(go.Scatter(
+        x=generations,
+        y=history,
+        mode='lines+markers',
+        line=dict(color='steelblue', width=2),
+        marker=dict(size=6, symbol='circle'),
+        name='最优解',
+        hovertemplate='<b>代数:</b> %{x}<br><b>最优总拖期:</b> %{y}<extra></extra>'
+    ))
 
-    plt.tight_layout()
+    fig.update_layout(
+        title='算法收敛曲线',
+        xaxis_title='迭代代数',
+        yaxis_title='最优总拖期 (天)',
+        width=800,
+        height=600,
+        showlegend=True
+    )
+
+    # 添加网格
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        fig.write_image(save_path)
         print(f"收敛曲线图已保存至: {save_path}")
 
-    plt.show()
+    fig.show()
 
 
 def analyze_solution_quality(pareto_solutions: List[Solution], materials: List[Material]):

@@ -58,6 +58,22 @@ class ScheduleResult:
     ca_machine: int  # 连退机器编号
     ca_start: float  # 连退开始时间
     ca_end: float  # 连退结束时间
+    complete_time: float = 0.0  # 完成时间（连退结束时间 + 转运时间）
+
+    def to_dict(self):
+        """将调度结果转换为字典格式"""
+        return {
+            'material_id': self.material_id,
+            'hr_start': self.hr_start,
+            'hr_end': self.hr_end,
+            'ar_machine': self.ar_machine,
+            'ar_start': self.ar_start,
+            'ar_end': self.ar_end,
+            'ca_machine': self.ca_machine,
+            'ca_start': self.ca_start,
+            'ca_end': self.ca_end,
+            'complete_time': self.complete_time
+        }
 
 
 @dataclass
@@ -94,7 +110,7 @@ class Solution:
 class StaticParameters:
     """静态参数配置"""
 
-    start_time = datetime.strptime("20260105", "%Y%m%d")
+    start_time = datetime.strptime("20260125", "%Y%m%d")
 
     # 产线顺序
     operation_sequence = [Operation.HR, Operation.AR, Operation.CA]
@@ -291,7 +307,8 @@ class NSGA2Solver:
 
         for result in schedule_results:
             mat = self.materials[result.material_id]
-            completion_days = result.ca_end / 24.0
+            # 使用complete_time作为实际完成时间（连退结束时间+转运时间）
+            completion_days = result.complete_time / 24.0
             delivery_days = (mat.delivery_date - StaticParameters.start_time).days
             tardiness = max(0, completion_days - delivery_days)
             max_tardiness = max(max_tardiness, tardiness)
@@ -391,7 +408,7 @@ class NSGA2Solver:
 
         # 1. 热轧工序 - 单机,按顺序处理
         hr_speed = self.params.speed[Operation.HR][0]
-        current_time = 0.0
+        current_time = 0.0  # 从0开始，表示从起始时间开始调度
 
         for mat_idx in solution.hr_sequence:
             mat = self.materials[mat_idx]
@@ -408,14 +425,15 @@ class NSGA2Solver:
                 ar_end=0,
                 ca_machine=-1,
                 ca_start=0,
-                ca_end=0
+                ca_end=0,
+                complete_time=0.0
             )
 
             current_time = end_time
 
         # 2. 酸轧工序 - 多台机器并行
         ar_speeds = self.params.speed[Operation.AR]
-        ar_machine_time = [0.0] * len(ar_speeds)  # 每台机器的当前时间
+        ar_machine_time = [0.0] * len(ar_speeds)  # 每台机器的当前时间，相对起始时间
 
         for machine_id, sequence in enumerate(solution.ar_sequences):
             for mat_idx in sequence:
@@ -437,7 +455,7 @@ class NSGA2Solver:
 
         # 3. 连退工序 - 多台机器并行
         ca_speeds = self.params.speed[Operation.CA]
-        ca_machine_time = [0.0] * len(ca_speeds)
+        ca_machine_time = [0.0] * len(ca_speeds)  # 每台机器的当前时间，相对起始时间
 
         for machine_id, sequence in enumerate(solution.ca_sequences):
             for mat_idx in sequence:
@@ -454,6 +472,9 @@ class NSGA2Solver:
                 result.ca_machine = machine_id
                 result.ca_start = start_time
                 result.ca_end = end_time
+
+                # 计算完成时间 = 连退结束时间 + Operation.CA的转运时间
+                result.complete_time = end_time + self.params.transmission_time[Operation.CA]
 
                 ca_machine_time[machine_id] = end_time
 
@@ -500,8 +521,9 @@ class NSGA2Solver:
         """
         计算连续生产的库存水平(改进版)
 
-        采用更细颗粒度的方法，考虑生产和运输连续性
-        按重量统计，按时间段(2小时)采样
+        基于事件驱动的精确库存计算方法
+        按重量统计，根据入库/出库事件实时更新库存
+        返回加权平均库存（考虑事件间隔时间）
 
         Args:
             schedule_results: 调度结果
@@ -509,44 +531,130 @@ class NSGA2Solver:
         Returns:
             平均库存水平(吨)
         """
-        # 获取调度结束时间
-        max_time = max(result.ca_end for result in schedule_results)
-
-        # 采样间隔(2小时)
-        sample_interval = 0.5
-
-        # 存储各时间段的库存
-        inventory_samples = []
-
-        # 按时间间隔采样库存
-        current_time = 0.0
-        while current_time <= max_time:
-            # 计算当前时间点的在制品库存
-            hr_to_ar_inventory = 0.0  # 热轧后等待酸轧的库存
-            ar_to_ca_inventory = 0.0  # 酸轧后等待连退的库存
-
-            for result in schedule_results:
-                mat_weight = self.materials[result.material_id].weight
-
-                # 检查是否在热轧后等待酸轧区域
-                if result.hr_end <= current_time < result.ar_start:
-                    hr_to_ar_inventory += mat_weight
-
-                # 检查是否在酸轧后等待连退区域
-                if result.ar_end <= current_time < result.ca_start:
-                    ar_to_ca_inventory += mat_weight
-
-            total_inventory = hr_to_ar_inventory + ar_to_ca_inventory
-            inventory_samples.append(total_inventory)
-
-            current_time += sample_interval
-
-        # 返回平均库存水平，也可以返回峰值库存
-        if len(inventory_samples) > 0:
-            average_inventory = sum(inventory_samples) / len(inventory_samples)
-            return average_inventory
-        else:
+        if not schedule_results:
             return 0.0
+
+        # 收集所有库存事件 (时间, 重量变化, 仓库类型)
+        events = []
+
+        for result in schedule_results:
+            mat_weight = self.materials[result.material_id].weight
+
+            # 热轧完成后入库事件 (热轧后-酸轧前缓冲区)
+            events.append((result.hr_end, mat_weight, 'hr_to_ar'))
+            # 酸轧开始前出库事件 (从热轧后-酸轧前缓冲区)
+            events.append((result.ar_start, -mat_weight, 'hr_to_ar'))
+
+            # 酸轧完成后入库事件 (酸轧后-连退前缓冲区)
+            events.append((result.ar_end, mat_weight, 'ar_to_ca'))
+            # 连退开始前出库事件 (从酸轧后-连退前缓冲区)
+            events.append((result.ca_start, -mat_weight, 'ar_to_ca'))
+
+        # 按时间排序事件
+        events.sort(key=lambda x: x[0])
+
+        # 遍历事件并计算加权平均库存
+        if not events:
+            return 0.0
+
+        # 计算每个时间段的库存并累加面积
+        total_inventory_time = 0.0  # 库存×时间的累积值
+        hr_to_ar_inventory = 0.0  # 热轧后-酸轧前库存
+        ar_to_ca_inventory = 0.0  # 酸轧后-连退前库存
+        prev_time = 0.0  # 上一个事件时间
+
+        for event_time, weight_change, warehouse_type in events:
+            # 计算从prev_time到event_time时间段的库存面积
+            if event_time > prev_time:
+                time_interval = event_time - prev_time
+                current_total_inventory = hr_to_ar_inventory + ar_to_ca_inventory
+                total_inventory_time += current_total_inventory * time_interval
+
+            # 更新库存（执行事件）
+            if warehouse_type == 'hr_to_ar':
+                hr_to_ar_inventory += weight_change
+            elif warehouse_type == 'ar_to_ca':
+                ar_to_ca_inventory += weight_change
+
+            prev_time = event_time
+
+        # 计算总的调度时间长度
+        max_time = max(result.ca_end for result in schedule_results)
+        total_duration = max_time - 0.0
+
+        if total_duration <= 0:
+            return 0.0
+
+        # 计算加权平均库存
+        avg_inventory = total_inventory_time / total_duration
+        return avg_inventory
+
+    def _calculate_inventory_peak_and_average(self, schedule_results: List[ScheduleResult]) -> Tuple[float, float]:
+        """
+        计算库存峰值和平均值（完整版）
+
+        Args:
+            schedule_results: 调度结果
+
+        Returns:
+            (峰值库存, 平均库存)
+        """
+        if not schedule_results:
+            return 0.0, 0.0
+
+        # 收集所有库存事件 (时间, 重量变化, 仓库类型)
+        events = []
+
+        for result in schedule_results:
+            mat_weight = self.materials[result.material_id].weight
+
+            # 热轧完成后入库事件 (热轧后-酸轧前缓冲区)
+            events.append((result.hr_end, mat_weight, 'hr_to_ar'))
+            # 酸轧开始前出库事件 (从热轧后-酸轧前缓冲区)
+            events.append((result.ar_start, -mat_weight, 'hr_to_ar'))
+
+            # 酸轧完成后入库事件 (酸轧后-连退前缓冲区)
+            events.append((result.ar_end, mat_weight, 'ar_to_ca'))
+            # 连退开始前出库事件 (从酸轧后-连退前缓冲区)
+            events.append((result.ca_start, -mat_weight, 'ar_to_ca'))
+
+        # 按时间排序事件
+        events.sort(key=lambda x: x[0])
+
+        # 遍历事件并计算库存变化
+        hr_to_ar_inventory = 0.0  # 热轧后-酸轧前库存
+        ar_to_ca_inventory = 0.0  # 酸轧后-连退前库存
+        max_inventory = 0.0  # 库存峰值
+        total_inventory_time = 0.0  # 库存×时间的累积值
+        prev_time = 0.0  # 上一个事件时间
+
+        for event_time, weight_change, warehouse_type in events:
+            # 计算从prev_time到event_time时间段的库存面积（在事件发生前）
+            if event_time > prev_time:
+                time_interval = event_time - prev_time
+                current_total_inventory = hr_to_ar_inventory + ar_to_ca_inventory
+                total_inventory_time += current_total_inventory * time_interval
+                max_inventory = max(max_inventory, current_total_inventory)
+
+            # 更新库存（执行事件）
+            if warehouse_type == 'hr_to_ar':
+                hr_to_ar_inventory += weight_change
+            elif warehouse_type == 'ar_to_ca':
+                ar_to_ca_inventory += weight_change
+
+            prev_time = event_time
+
+        # 计算总的调度时间长度
+        max_time = max(result.ca_end for result in schedule_results)
+        total_duration = max_time - 0.0
+
+        if total_duration <= 0:
+            return 0.0, 0.0
+
+        # 计算加权平均库存
+        avg_inventory = total_inventory_time / total_duration if total_duration > 0 else 0.0
+
+        return max_inventory, avg_inventory
 
     def _calculate_constraint_penalty(self, solution: Solution) -> float:
         """
@@ -978,8 +1086,8 @@ class NSGA2Solver:
                 print(
                     f"代数 {gen + 1}/{n_generations}: "
                     f"Pareto={len(fronts[0])}, "
-                    f"Max拖期={best_tardiness:.2f}, "
-                    f"库存={best_inventory:.1f}, "
+                    f"Max拖期={best_tardiness:.2f}天, "
+                    f"库存={best_inventory:.1f}吨, "
                     f"工艺不稳={avg_instability:.1f}"
                 )
 
@@ -1045,16 +1153,16 @@ def load_materials_from_db() -> List[Material]:
     """
     try:
         from database import get_db_session
-        from order_new import order_new
+        from table.order_new import order_new
 
         with get_db_session() as db:
             records = db.query(order_new).all()
-
+        # records = records[:1] + records[10:11]
         materials = []
         for record in records:
             # 解析交货日期
             try:
-                delivery_date = datetime.strptime(record.delivery_date, '%Y-%m-%d')
+                delivery_date = datetime.strptime(record.delivery_date, '%Y%m%d')
             except:
                 # 如果解析失败,使用30天后作为默认值
                 delivery_date = datetime.now() + timedelta(days=30)
@@ -1074,36 +1182,38 @@ def load_materials_from_db() -> List[Material]:
     except Exception as e:
         print(f"从数据库加载数据失败: {e}")
         print("将使用示例数据...")
-        return create_sample_materials()
+        raise e
 
 
-def create_sample_materials() -> List[Material]:
+
+import uuid
+
+def save_results_to_db(pareto_solutions, materials, clear_existing: bool = False):
     """
-    创建示例材料数据(用于测试)
+    保存帕累托前沿结果到数据库
 
-    Returns:
-        示例材料列表
+    Args:
+        pareto_solutions: 帕累托前沿解列表
+        materials: 材料列表（用于获取订单号等信息）
+        clear_existing: 是否在插入前清空现有数据，默认为False
     """
-    np.random.seed(42)
-    random.seed(42)
+    try:
+        from database_util import save_pareto_front_results
 
-    n_materials = 20
-    categories = ['A', 'B', 'C', 'D']
+        # 生成任务ID
+        task_id = f"nsga2_task_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}"
 
-    materials = []
-    for i in range(n_materials):
-        mat = Material(
-            id=i,
-            order_no=f"ORD-{i:03d}",
-            category=random.choice(categories),
-            width=random.uniform(800, 1800),
-            thickness=random.uniform(0.5, 3.0),
-            weight=random.uniform(10, 50),
-            delivery_date=StaticParameters.start_time + timedelta(days=random.randint(15, 60))
-        )
-        materials.append(mat)
+        # 设置结束时间
+        for sol in pareto_solutions:
+            if hasattr(sol, '__dict__') and 'start_time' in sol.__dict__:
+                sol.end_time = datetime.now().isoformat()
 
-    return materials
+        save_pareto_front_results(task_id, pareto_solutions, materials, clear_existing=clear_existing)
+        print(f"结果已成功保存到数据库，任务ID: {task_id}")
+    except ImportError:
+        print("警告: 无法导入数据库工具，结果将不会保存到数据库")
+    except Exception as e:
+        print(f"保存结果到数据库时出错: {e}")
 
 
 if __name__ == "__main__":
@@ -1126,8 +1236,8 @@ if __name__ == "__main__":
     print("-" * 80)
 
     pareto_front = solver.solve(
-        pop_size=150,
-        n_generations=200,
+        pop_size=100,
+        n_generations=100,
         mutation_rate=0.15,
         verbose=True
     )
@@ -1144,7 +1254,7 @@ if __name__ == "__main__":
     # 按拖期排序
     pareto_front_sorted = sorted(pareto_front, key=lambda x: x.max_tardiness)
 
-    for i, sol in enumerate(pareto_front_sorted[:5]):
+    for i, sol in enumerate(pareto_front_sorted[:1]):
         print(f"\n方案 {i+1}:")
         print(f"  总拖期: {sol.max_tardiness:.2f} 天")
         print(f"  库存水平: {sol.avg_inventory:.1f} 吨")
@@ -1156,14 +1266,18 @@ if __name__ == "__main__":
         print(f"  酸轧机负载: {ar_loads}")
         print(f"  连退机负载: {ca_loads}")
 
+    # 保存结果到数据库
+    print("\n正在保存结果到数据库...")
+    save_results_to_db(pareto_front, materials, clear_existing=True)
+
     print("\n" + "=" * 80)
     print("求解完成!")
     print("=" * 80)
-    from visualization import Visualizer
-    visualizer = Visualizer(materials)
-    visualizer.plot_pareto_front(pareto_front, save_path="pareto_front.png")
-    visualizer.plot_pareto_2d(pareto_front, save_path="pareto_front_2d.png")
-    # for i, sol in enumerate(pareto_front_sorted[:5]):
+    # from visualization import Visualizer
+    # visualizer = Visualizer(materials)
+    # visualizer.plot_pareto_front(pareto_front, save_path="pareto_front.png")
+    # visualizer.plot_pareto_2d(pareto_front, save_path="pareto_front_2d.png")
+    # for i, sol in enumerate(pareto_front[:1]):
     #     visualizer.plot_inventory_curve(sol, save_path=f"inventory_curve_{i+1}.png")
     #     visualizer.plot_gantt_chart(sol, save_path=f"gantt_chart_{i+1}.png")
 

@@ -8,7 +8,7 @@ import heapq
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from order_new import order_new
+from table.order_new import order_new
 import database
 
 # --------- 枚举工序 ---------

@@ -15,7 +15,7 @@ DB_PATH = r"C:\Users\lxq\Desktop\GraduationPaper\opt-cold-rolling\sql\cold_rolli
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 # 创建数据库引擎
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 # 创建会话
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
