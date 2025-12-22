@@ -43,7 +43,7 @@ def plot_schedule_gantt(
             t = sub[["order_no", "hr_start", "hr_end"]].copy()
             t["stage"] = "HR"
             t["lane"] = "HR"
-            t["machine"] = None
+            t["machine"] = '0'
             t = t.rename(columns={"hr_start": "start", "hr_end": "end"})
             tasks.append(t)
 
@@ -69,21 +69,6 @@ def plot_schedule_gantt(
             t = t.rename(columns={"ca_start": "start", "ca_end": "end"})
             tasks.append(t.drop(columns=["ca_machine"]))
 
-    # 如果有complete_time列，添加为额外任务（表示最终完成时间）
-    if "complete_time" in df.columns:
-        sub_complete = df[df["complete_time"].notna()]
-        if not sub_complete.empty:
-            # 为每个订单添加一个表示complete_time的虚拟任务
-            for _, row in sub_complete.iterrows():
-                complete_task = pd.DataFrame({
-                    "order_no": [row["order_no"]],
-                    "start": [pd.to_datetime(row["complete_time"]) - pd.Timedelta(minutes=30)],  # 创建短时间段
-                    "end": [pd.to_datetime(row["complete_time"]) + pd.Timedelta(minutes=30)],
-                    "stage": ["Complete"],
-                    "lane": ["Complete"],
-                    "machine": [""]
-                })
-                tasks.append(complete_task)
 
     if not tasks:
         print("没有可绘制的数据（所有 start/end 都为空或缺列）")
@@ -116,7 +101,7 @@ def plot_schedule_gantt(
     tasks["start_str"] = tasks["start"].dt.strftime("%Y-%m-%d %H:%M:%S")
     tasks["end_str"] = tasks["end"].dt.strftime("%Y-%m-%d %H:%M:%S")
     tasks["duration_hours"] = tasks["duration_min"] / 60.0
-    tasks["machine"] = 0 if tasks["machine"].isna().any() else tasks["machine"]
+    tasks["machine"] = tasks["machine"]
 
     fig = px.timeline(
         tasks,

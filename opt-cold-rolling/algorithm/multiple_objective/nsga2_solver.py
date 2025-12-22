@@ -12,6 +12,7 @@ NSGA-II求解器 - 用于混合流水车间调度问题
   * 最小化库存水平
   * 最小化工艺违规惩罚
 """
+import math
 
 import numpy as np
 import pandas as pd
@@ -298,19 +299,19 @@ class NSGA2Solver:
         Returns:
             评估后的解(更新目标函数值)
         """
-        # 仿真调度过程
+        # 仿真调度过程（解码）
         schedule_results = self._simulate_schedule(solution)
         solution.schedule_results = schedule_results
 
-        # 计算目标函数
+        # 计算目标函数，取所有订单的最大拖期值
         max_tardiness = 0.0
 
         for result in schedule_results:
             mat = self.materials[result.material_id]
             # 使用complete_time作为实际完成时间（连退结束时间+转运时间）
             completion_days = result.complete_time / 24.0
-            delivery_days = (mat.delivery_date - StaticParameters.start_time).days
-            tardiness = max(0, completion_days - delivery_days)
+            delivery_days = (mat.delivery_date - StaticParameters.start_time).seconds / (24.0 * 3600.0)
+            tardiness = max(0.0, completion_days - delivery_days)
             max_tardiness = max(max_tardiness, tardiness)
 
         # 计算库存
@@ -441,6 +442,8 @@ class NSGA2Solver:
                 result = results[mat_idx]
 
                 # 开始时间 = max(热轧完成时间+运输时间, 机器可用时间)
+                if None == result.hr_end:
+                    raise ValueError("----热轧完成时间未知")
                 earliest_start = result.hr_end + self.params.transmission_time[Operation.HR]
                 start_time = max(earliest_start, ar_machine_time[machine_id])
 
@@ -463,6 +466,8 @@ class NSGA2Solver:
                 result = results[mat_idx]
 
                 # 开始时间 = max(酸轧完成时间+运输时间, 机器可用时间)
+                if None == result.ar_end:
+                    raise ValueError("----酸轧完成时间未知")
                 earliest_start = result.ar_end + self.params.transmission_time[Operation.AR]
                 start_time = max(earliest_start, ca_machine_time[machine_id])
 
@@ -532,62 +537,143 @@ class NSGA2Solver:
             平均库存水平(吨)
         """
         if not schedule_results:
-            return 0.0
+            raise ValueError("----当前调度结果为空")
 
         # 收集所有库存事件 (时间, 重量变化, 仓库类型)
         events = []
 
+        unit_ton = 50.0
+
         for result in schedule_results:
-            mat_weight = self.materials[result.material_id].weight
+            total_weight = self.materials[result.material_id].weight
 
-            # 热轧完成后入库事件 (热轧后-酸轧前缓冲区)
-            events.append((result.hr_end, mat_weight, 'hr_to_ar'))
-            # 酸轧开始前出库事件 (从热轧后-酸轧前缓冲区)
-            events.append((result.ar_start, -mat_weight, 'hr_to_ar'))
+            # ========= HR → AR 缓冲区 =========
+            num_units = int(math.ceil(total_weight / unit_ton))
 
-            # 酸轧完成后入库事件 (酸轧后-连退前缓冲区)
-            events.append((result.ar_end, mat_weight, 'ar_to_ca'))
-            # 连退开始前出库事件 (从酸轧后-连退前缓冲区)
-            events.append((result.ca_start, -mat_weight, 'ar_to_ca'))
+            # ---- 热轧连续入库 ----
+            hr_duration = result.hr_end - result.hr_start
+            hr_unit_time = hr_duration / num_units
+
+            for k in range(num_units):
+                t = result.hr_start + (k + 1) * hr_unit_time
+                w = unit_ton if k < num_units - 1 else total_weight - unit_ton * (num_units - 1)
+                events.append((t, w, 'hr_to_ar'))
+
+            # ---- 酸轧连续出库 ----
+            ar_duration = result.ar_end - result.ar_start
+            ar_unit_time = ar_duration / num_units
+
+            for k in range(num_units):
+                t = result.ar_start + (k + 1) * ar_unit_time
+                w = unit_ton if k < num_units - 1 else total_weight - unit_ton * (num_units - 1)
+                events.append((t, -w, 'hr_to_ar'))
+
+            # ========= AR → CA 缓冲区 =========
+
+            # ---- 酸轧连续入库 ----
+            for k in range(num_units):
+                t = result.ar_start + (k + 1) * ar_unit_time
+                w = unit_ton if k < num_units - 1 else total_weight - unit_ton * (num_units - 1)
+                events.append((t, w, 'ar_to_ca'))
+
+            # ---- 连退连续出库 ----
+            ca_duration = result.ca_end - result.ca_start
+            ca_unit_time = ca_duration / num_units
+
+            for k in range(num_units):
+                t = result.ca_start + (k + 1) * ca_unit_time
+                w = unit_ton if k < num_units - 1 else total_weight - unit_ton * (num_units - 1)
+                events.append((t, -w, 'ar_to_ca'))
+
+            # ========= CA → 最终库存 =========
+
+            # ---- 连退连续入库 ----
+            for k in range(num_units):
+                t = result.ca_start + (k + 1) * ca_unit_time
+                w = unit_ton if k < num_units - 1 else total_weight - unit_ton * (num_units - 1)
+                events.append((t, w, 'ca_to_final'))
+
+            # ---- 最终交付出库（保留为整卷）----
+            delivery_time = (
+                                    self.materials[result.material_id].delivery_date
+                                    - StaticParameters.start_time
+                            ).seconds / 3600.0
+
+            events.append((
+                max(result.complete_time, delivery_time),
+                -total_weight,
+                'ca_to_final'
+            ))
 
         # 按时间排序事件
         events.sort(key=lambda x: x[0])
 
-        # 遍历事件并计算加权平均库存
         if not events:
-            return 0.0
+            raise ValueError("----当前没有库存变化")
 
-        # 计算每个时间段的库存并累加面积
-        total_inventory_time = 0.0  # 库存×时间的累积值
-        hr_to_ar_inventory = 0.0  # 热轧后-酸轧前库存
-        ar_to_ca_inventory = 0.0  # 酸轧后-连退前库存
-        prev_time = 0.0  # 上一个事件时间
+        # ------------------------最小化三个仓库的最大库存---------------------------------
+        # 当前库存
+        hr_to_ar = ar_to_ca = ca_to_final = 0.0
 
-        for event_time, weight_change, warehouse_type in events:
-            # 计算从prev_time到event_time时间段的库存面积
-            if event_time > prev_time:
-                time_interval = event_time - prev_time
-                current_total_inventory = hr_to_ar_inventory + ar_to_ca_inventory
-                total_inventory_time += current_total_inventory * time_interval
+        # 峰值库存
+        max_hr_to_ar = max_ar_to_ca = max_ca_to_final = 0.0
 
-            # 更新库存（执行事件）
-            if warehouse_type == 'hr_to_ar':
-                hr_to_ar_inventory += weight_change
-            elif warehouse_type == 'ar_to_ca':
-                ar_to_ca_inventory += weight_change
+        for _, delta, warehouse in events:
+            if warehouse == 'hr_to_ar':
+                hr_to_ar += delta
+                max_hr_to_ar = max(max_hr_to_ar, hr_to_ar)
 
-            prev_time = event_time
+            elif warehouse == 'ar_to_ca':
+                ar_to_ca += delta
+                max_ar_to_ca = max(max_ar_to_ca, ar_to_ca)
 
-        # 计算总的调度时间长度
-        max_time = max(result.ca_end for result in schedule_results)
-        total_duration = max_time - 0.0
+            elif warehouse == 'ca_to_final':
+                ca_to_final += delta
+                max_ca_to_final = max(max_ca_to_final, ca_to_final)
 
-        if total_duration <= 0:
-            return 0.0
+        return max(max_hr_to_ar, max_ar_to_ca, max_ca_to_final)
+        # # 计算每个时间段的库存并累加面积
+        # total_inventory_time = 0.0  # 库存×时间的累积值
+        # hr_to_ar_inventory = 0.0  # 热轧后-酸轧前库存
+        # ar_to_ca_inventory = 0.0  # 酸轧后-连退前库存
+        # ca_to_final_inventory = 0.0  # 连退后-最终库存
+        #
+        # # 用最早事件时间作为起点，避免从0开始导致均值被稀释
+        # start_time = events[0][0]
+        # prev_time = start_time
+        #
+        # for event_time, weight_change, warehouse_type in events:
+        #     # 计算从prev_time到event_time时间段的库存面积
+        #     if event_time > prev_time:
+        #         time_interval = event_time - prev_time
+        #         current_total_inventory = hr_to_ar_inventory + ar_to_ca_inventory + ca_to_final_inventory
+        #         total_inventory_time += current_total_inventory * time_interval
+        #
+        #     # 更新库存（执行事件）
+        #     if warehouse_type == 'hr_to_ar':
+        #         hr_to_ar_inventory += weight_change
+        #     elif warehouse_type == 'ar_to_ca':
+        #         ar_to_ca_inventory += weight_change
+        #     elif warehouse_type == 'ca_to_final':
+        #         ca_to_final_inventory += weight_change
+        #
+        #     prev_time = event_time
+        #
+        # # 结束时间用最晚 能交货的时间
+        # end_time = max(max(r.complete_time, (self.materials[r.material_id].delivery_date - StaticParameters.start_time).seconds / 3600.0) for r in schedule_results)
+        #
+        # # 补上最后一个事件到结束时间的面积
+        # if end_time > prev_time:
+        #     current_total_inventory = hr_to_ar_inventory + ar_to_ca_inventory + ca_to_final_inventory
+        #     total_inventory_time += current_total_inventory * (end_time - prev_time)
+        #
+        # total_duration = end_time - start_time
+        # if total_duration <= 0:
+        #     return 0.0
 
-        # 计算加权平均库存
-        avg_inventory = total_inventory_time / total_duration
-        return avg_inventory
+        # # 计算加权平均库存
+        # avg_inventory = total_inventory_time / total_duration
+        # return avg_inventory
 
     def _calculate_inventory_peak_and_average(self, schedule_results: List[ScheduleResult]) -> Tuple[float, float]:
         """
@@ -1236,7 +1322,7 @@ if __name__ == "__main__":
     print("-" * 80)
 
     pareto_front = solver.solve(
-        pop_size=100,
+        pop_size=150,
         n_generations=100,
         mutation_rate=0.15,
         verbose=True

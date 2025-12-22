@@ -3,6 +3,7 @@
 """
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.serializers import custom_serializers
 from plotly.subplots import make_subplots
 import plotly.express as px
 from datetime import datetime
@@ -40,20 +41,18 @@ def plot_tardiness_chart(df: pd.DataFrame, order_delivery_df: pd.DataFrame, titl
         # 优先使用complete_time（最终完成时间），如果不存在则使用ca_end（连退结束时间）
         if 'complete_time' in row and pd.notna(row['complete_time']):
             completion_time = row['complete_time']
-        elif 'ca_end' in row and pd.notna(row['ca_end']):
-            completion_time = row['ca_end']
         else:
-            completion_time = None
+            raise ValueError("无法计算拖期，因为complete_time列不存在")
         delivery_date = row['delivery_date']
 
         if completion_time is not None:
             # 计算天数差异
-            diff_days = (completion_time - delivery_date).days
+            diff_days = (completion_time - delivery_date).total_seconds() / (24 * 60 * 60)
             results.append({
                 'order_no': order_no,
                 'delivery_date': delivery_date,
                 'completion_date': completion_time,
-                'diff_days': diff_days
+                'diff_days': round(diff_days, 2)
             })
 
     if not results:
@@ -72,7 +71,13 @@ def plot_tardiness_chart(df: pd.DataFrame, order_delivery_df: pd.DataFrame, titl
     result_df['tardiness'] = result_df['diff_days'].apply(lambda x: x if x > 0 else 0)
     result_df['earliness'] = result_df['diff_days'].apply(lambda x: x if x < 0 else 0)
 
-    # 拖期柱（正数，向上）
+    # 格式化为可读字符串
+    customdata = pd.DataFrame({
+        'delivery': result_df['delivery_date'].dt.strftime('%Y-%m-%d %H:%M:%S'),
+        'completion': result_df['completion_date'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    }).values
+
+    # 拖期柱
     fig.add_trace(go.Bar(
         x=result_df['order_no'],
         y=result_df['tardiness'],
@@ -80,7 +85,14 @@ def plot_tardiness_chart(df: pd.DataFrame, order_delivery_df: pd.DataFrame, titl
         marker_color='red',
         text=result_df['tardiness'],
         textposition='auto',
-        hovertemplate='<b>%{x}</b><br>拖期: %{y}天<br><extra></extra>'
+        customdata=customdata,
+        hovertemplate=(
+            '<b>%{x}</b><br>'
+            '拖期: %{y}天<br>'
+            '交货时间: %{customdata[0]}<br>'
+            '完成时间: %{customdata[1]}<br>'
+            '<extra></extra>'
+        )
     ))
 
     # 提前柱（负数，向下）
@@ -89,9 +101,16 @@ def plot_tardiness_chart(df: pd.DataFrame, order_delivery_df: pd.DataFrame, titl
         y=result_df['earliness'],
         name='提前 (天)',
         marker_color='green',
-        text=result_df['earliness'].abs(),  # 显示绝对值
+        text=result_df['earliness'].abs(),
         textposition='auto',
-        hovertemplate='<b>%{x}</b><br>提前: %{y}天<br><extra></extra>'
+        customdata=customdata,
+        hovertemplate=(
+            '<b>%{x}</b><br>'
+            '提前: %{y}天<br>'
+            '交货时间: %{customdata[0]}<br>'
+            '完成时间: %{customdata[1]}<br>'
+            '<extra></extra>'
+        )
     ))
 
     # 更新布局

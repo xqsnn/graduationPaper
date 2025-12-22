@@ -4,7 +4,7 @@
 import os
 import pandas as pd
 from database import get_db_session
-from table.schedule_result import ScheduleResultDetail
+from table.schedule_result import ScheduleResult
 from plot_charts.plot_gant_charts import plot_schedule_gantt
 
 def get_schedule_result_by_pareto_id(pareto_front_id: int):
@@ -19,8 +19,8 @@ def get_schedule_result_by_pareto_id(pareto_front_id: int):
     """
     with get_db_session() as db:
         # 查询指定pareto_front_id的调度结果
-        results = db.query(ScheduleResultDetail).filter(
-            ScheduleResultDetail.pareto_front_id == pareto_front_id
+        results = db.query(ScheduleResult).filter(
+            ScheduleResult.pareto_front_id == pareto_front_id
         ).all()
 
         # 将结果转换为DataFrame

@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 # ORM基类
 Base = declarative_base()
 
-class ScheduleResultDetail(Base):
+class ScheduleResult(Base):
     __tablename__ = "schedule_result"
 
     id = Column(Integer, primary_key=True, nullable=False)

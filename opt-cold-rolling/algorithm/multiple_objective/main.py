@@ -7,7 +7,7 @@ from table.order_new import order_new
 
 
 if __name__ == "__main__":
-    result = get_schedule_result_by_pareto_id(661)
+    result = get_schedule_result_by_pareto_id(1)
     order_new_data = get_table_data(order_new)
 
     plot_schedule_gantt(result)

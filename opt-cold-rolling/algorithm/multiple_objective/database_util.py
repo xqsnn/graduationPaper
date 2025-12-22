@@ -3,9 +3,12 @@
 """
 import os
 from datetime import datetime, timedelta
+
+from sqlalchemy import text
+
 from database import get_db_session
 from table.pareto_front_solution import ParetoFrontSolution
-from table.schedule_result import ScheduleResultDetail
+from table.schedule_result import ScheduleResult
 from nsga2_solver import StaticParameters
 
 def save_pareto_front_results(task_id: str, pareto_solutions: list, materials: list, clear_existing: bool = False):
@@ -21,24 +24,11 @@ def save_pareto_front_results(task_id: str, pareto_solutions: list, materials: l
     with get_db_session() as db:
         # 如果需要清空现有数据
         if clear_existing:
-            # 根据task_id获取现有的pareto_front_solution记录ID以清空对应的详细记录
-            existing_pareto_records = db.query(ParetoFrontSolution.id).filter(
-                ParetoFrontSolution.task_id.like(f'{task_id.split("_")[0]}_%')
-            ).all()
-
-            existing_pareto_ids = [r.id for r in existing_pareto_records]
-
-            if existing_pareto_ids:
-                # 清空schedule_result表中对应pareto_front_id的数据
-                db.query(ScheduleResultDetail).filter(
-                    ScheduleResultDetail.pareto_front_id.in_(existing_pareto_ids)
-                ).delete(synchronize_session=False)
-
-            # 清空pareto_front_solution表中相关数据
-            db.query(ParetoFrontSolution).filter(
-                ParetoFrontSolution.task_id.like(f'{task_id.split("_")[0]}_%')
-            ).delete(synchronize_session=False)
-
+            db.query(ParetoFrontSolution).delete()
+            db.query(ScheduleResult).delete()
+            db.commit()
+            db.execute(text("DELETE FROM sqlite_sequence WHERE name='pareto_front_solution';"))  # 使用 text() 包装原始 SQL
+            db.execute(text("DELETE FROM sqlite_sequence WHERE name = 'schedule_result';"))
             db.commit()
             print("已清空现有数据")
 
@@ -86,7 +76,7 @@ def save_pareto_front_results(task_id: str, pareto_solutions: list, materials: l
                     # 计算完成时间
                     complete_time_dt = start_time + timedelta(hours=schedule_res.complete_time)
 
-                    detail_record = ScheduleResultDetail(
+                    detail_record = ScheduleResult(
                         order_no=material.order_no,
                         hr_start=hr_start_dt.strftime('%Y-%m-%d %H:%M:%S'),
                         hr_end=hr_end_dt.strftime('%Y-%m-%d %H:%M:%S'),
