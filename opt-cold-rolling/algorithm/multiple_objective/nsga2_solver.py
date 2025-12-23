@@ -1323,7 +1323,7 @@ if __name__ == "__main__":
 
     pareto_front = solver.solve(
         pop_size=150,
-        n_generations=100,
+        n_generations=200,
         mutation_rate=0.15,
         verbose=True
     )
